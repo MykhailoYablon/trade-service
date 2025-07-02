@@ -1,5 +1,6 @@
 package com.example.tradeservice.service;
 
+
 import com.example.tradeservice.model.Trade;
 
 import java.util.List;

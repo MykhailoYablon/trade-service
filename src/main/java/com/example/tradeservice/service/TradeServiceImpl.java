@@ -16,8 +16,8 @@ public class TradeServiceImpl implements TradeService {
         this.tradeRepository = tradeRepository;
     }
 
-    @Override
     @Transactional(readOnly = true)
+    @Override
     public List<Trade> getAllTrades() {
         return tradeRepository.findAll();
     }
@@ -27,14 +27,14 @@ public class TradeServiceImpl implements TradeService {
         return tradeRepository.findById(id);
     }
 
-    @Override
     @Transactional
+    @Override
     public Trade createTrade(Trade trade) {
         return tradeRepository.save(trade);
     }
 
-    @Override
     @Transactional
+    @Override
     public Optional<Trade> updateTrade(Long id, Trade tradeDetails) {
         return tradeRepository.findById(id)
                 .map(trade -> {
