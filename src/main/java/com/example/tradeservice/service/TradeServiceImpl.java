@@ -2,24 +2,41 @@ package com.example.tradeservice.service;
 
 import com.example.tradeservice.model.Trade;
 import com.example.tradeservice.repository.TradeRepository;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+@AllArgsConstructor
 @Service
+@Slf4j
 public class TradeServiceImpl implements TradeService {
     private final TradeRepository tradeRepository;
+    private final PositionTracker positionTracker;
 
-    public TradeServiceImpl(TradeRepository tradeRepository) {
-        this.tradeRepository = tradeRepository;
-    }
 
     @Transactional(readOnly = true)
     @Override
     public List<Trade> getAllTrades() {
-        return tradeRepository.findAll();
+        List<Trade> trades = new ArrayList<>();
+        positionTracker.getAllPositions()
+                .forEach(position -> {
+
+                    log.info("Trade: {}", position);
+
+                    Trade trade = Trade.builder()
+                            .symbol(position.getContract().symbol())
+                            .quantity(position.getQuantity().value())
+                            .price(position.getAvgPrice())
+
+                            .build();
+                    trades.add(trade);
+                });
+        return trades;
     }
 
     @Override
