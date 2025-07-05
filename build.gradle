@@ -12,6 +12,7 @@ defaultTasks 'bootRun'
 
 repositories {
     mavenCentral()
+    mavenLocal()
 }
 
 dependencies {
@@ -21,6 +22,7 @@ dependencies {
     implementation 'org.projectlombok:lombok:1.18.32'
     annotationProcessor 'org.projectlombok:lombok:1.18.32'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    implementation files('libs/TwsApi.jar')
 }
 
 test {

@@ -43,7 +43,7 @@ public class ContractHolder implements Serializable {
      * Available options for the underlying asset. The system won't fill the option chain automatically,
      * you have to request for the available option chain first.
      *
-     * @see hu.auxin.ibkrfacade.service.ContractManagerService#getOptionChainByConid(int)
+//     * @see hu.auxin.ibkrfacade.service.ContractManagerService#getOptionChainByConid(int)
      */
     private Set<Option> optionChain = new HashSet<>();
 
@@ -51,7 +51,7 @@ public class ContractHolder implements Serializable {
      * RequestId (or tickId at some places in TWS API) which identifies the data streams (if there's any) for the contract.
      * The key of a time series for a contract in Redis looks like the following: stream:[streamRequestId]:[BID|ASK]
      *
-     * @see hu.auxin.ibkrfacade.data.TimeSeriesHandler
+//     * @see hu.auxin.ibkrfacade.data.TimeSeriesHandler
      */
 //    @Indexed
     private Integer streamRequestId;

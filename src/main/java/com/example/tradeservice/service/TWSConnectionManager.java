@@ -3,7 +3,7 @@ package com.example.tradeservice.service;
 import com.example.tradeservice.model.ContractHolder;
 import com.example.tradeservice.model.Option;
 import com.example.tradeservice.model.PositionHolder;
-import com.example.tradeservice.repository.ContractRepository;
+//import com.example.tradeservice.repository.ContractRepository;
 import com.ib.client.*;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -11,9 +11,8 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.text.DecimalFormat;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,7 +29,7 @@ public class TWSConnectionManager implements EWrapper {
     private OrderTracker orderTracker;
     private CountDownLatch connectionLatch;
     private final TwsResultHandler twsResultHandler;
-    private final ContractRepository contractRepository;
+//    private final ContractRepository contractRepository;
     private final AtomicInteger autoIncrement = new AtomicInteger();
 
     // Connection parameters
@@ -38,24 +37,26 @@ public class TWSConnectionManager implements EWrapper {
     private static final int PORT = 7497; // Paper trading port (7496 for live)
     private static final int CLIENT_ID = 0;
 
-    public TWSConnectionManager(ContractRepository contractRepository, PositionTracker positionTracker,
+    public TWSConnectionManager(PositionTracker positionTracker,
                                 OrderTracker orderTracker) {
         this.client = new EClientSocket(this, readerSignal);
         this.positionTracker = positionTracker;
         this.orderTracker = orderTracker;
         this.connectionLatch = new CountDownLatch(1);
         this.twsResultHandler = new TwsResultHandler();
-        this.contractRepository = contractRepository;
+//        this.contractRepository = contractRepository;
     }
 
     @PostConstruct
     private void connect() throws InterruptedException {
         client.eConnect(HOST, PORT, CLIENT_ID);
 
+        log.info("Client is connected " + client.isConnected());
+
         // Wait for connection
-        if (!connectionLatch.await(10, TimeUnit.SECONDS)) {
-            throw new RuntimeException("Connection timeout");
-        }
+//        if (!connectionLatch.await(60, TimeUnit.SECONDS)) {
+//            throw new RuntimeException("Connection timeout");
+//        }
 
         final EReader reader = new EReader(client, readerSignal);
         reader.start();
@@ -73,13 +74,27 @@ public class TWSConnectionManager implements EWrapper {
             }
         }).start();
 
-        // Thread.sleep(2000); // avoid "Ignoring API request 'jextend.cs' since API is not accepted." error
+         Thread.sleep(2000); // avoid "Ignoring API request 'jextend.cs' since API is not accepted." error
 
         log.info("Connected to TWS successfully!");
 
         client.reqPositions(); // subscribe to positions
         client.reqAutoOpenOrders(true); // subscribe to order changes
         client.reqAllOpenOrders(); // initial request for open orders
+
+        client.getTwsConnectionTime();
+
+
+        requestExistingData();
+
+        try {
+            Thread.sleep(5000); // Example: wait for 5 seconds to receive data
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        Collection<PositionHolder> allPositions = positionTracker.getAllPositions();
+
+        log.info("Positions: {}", allPositions);
 
 //        orderManagerService.setClient(clientSocket);
     }
@@ -190,7 +205,7 @@ public class TWSConnectionManager implements EWrapper {
     @Override
     public void positionEnd() {
         log.info("All Position list retrieved");
-//        positionTracker.printPositions();
+        positionTracker.getAllPositions();
     }
 
     // Order callbacks
@@ -444,33 +459,33 @@ public class TWSConnectionManager implements EWrapper {
                                                     String tradingClass, String multiplier,
                                                     java.util.Set<String> expirations,
                                                     java.util.Set<Double> strikes) {
-        ContractHolder underlyingContractHolder = contractRepository.findById(underlyingConId).orElseGet(() -> {
-            TwsResultHolder<ContractHolder> holder = requestContractByConid(underlyingConId);
-            return holder.getResult();
-        });
-
-        for (Types.Right right : List.of(Types.Right.Call, Types.Right.Put)) {
-            for (String expiration : expirations) {
-                for (Double strike : strikes) {
-                    String optionSymbol = underlyingContractHolder.getContract().symbol() + " " + expiration + " " + right;
-                    Option option = new Option(optionSymbol, expiration, strike, right);
-                    underlyingContractHolder.getOptionChain().add(option);
-                }
-            }
-        }
-
-        underlyingContractHolder.setOptionChainRequestId(reqId);
-        contractRepository.save(underlyingContractHolder);
+//        ContractHolder underlyingContractHolder = contractRepository.findById(underlyingConId).orElseGet(() -> {
+//            TwsResultHolder<ContractHolder> holder = requestContractByConid(underlyingConId);
+//            return holder.getResult();
+//        });
+//
+//        for (Types.Right right : List.of(Types.Right.Call, Types.Right.Put)) {
+//            for (String expiration : expirations) {
+//                for (Double strike : strikes) {
+//                    String optionSymbol = underlyingContractHolder.getContract().symbol() + " " + expiration + " " + right;
+//                    Option option = new Option(optionSymbol, expiration, strike, right);
+//                    underlyingContractHolder.getOptionChain().add(option);
+//                }
+//            }
+//        }
+//
+//        underlyingContractHolder.setOptionChainRequestId(reqId);
+//        contractRepository.save(underlyingContractHolder);
     }
 
     @Override
     public void securityDefinitionOptionalParameterEnd(int reqId) {
 
-        ContractHolder underlying = contractRepository.findContractHolderByOptionChainRequestId(reqId);
-        if (underlying != null && !CollectionUtils.isEmpty(underlying.getOptionChain())) {
-            twsResultHandler.setResult(reqId, new TwsResultHolder<>(underlying.getOptionChain()));
-        }
-        log.debug("Option chain retrieved: {}", underlying.getOptionChain());
+//        ContractHolder underlying = contractRepository.findContractHolderByOptionChainRequestId(reqId);
+//        if (underlying != null && !CollectionUtils.isEmpty(underlying.getOptionChain())) {
+//            twsResultHandler.setResult(reqId, new TwsResultHolder<>(underlying.getOptionChain()));
+//        }
+//        log.debug("Option chain retrieved: {}", underlying.getOptionChain());
     }
 
     @Override
@@ -489,111 +504,179 @@ public class TWSConnectionManager implements EWrapper {
 
     @Override
     public void symbolSamples(int reqId, ContractDescription[] contractDescriptions) {
+        List<Contract> resultList = new ArrayList<>();
+        for (ContractDescription cd : contractDescriptions) {
+            resultList.add(cd.contract());
+        }
+        twsResultHandler.setResult(reqId, new TwsResultHolder(resultList));
     }
 
     @Override
     public void mktDepthExchanges(DepthMktDataDescription[] depthMktDataDescriptions) {
+        for (DepthMktDataDescription depthMktDataDescription : depthMktDataDescriptions) {
+            log.info("Depth Mkt Data Description. Exchange: " + depthMktDataDescription.exchange() +
+                    ", ListingExch: " + depthMktDataDescription.listingExch() +
+                    ", SecType: " + depthMktDataDescription.secType() +
+                    ", ServiceDataType: " + depthMktDataDescription.serviceDataType() +
+                    ", AggGroup: " + depthMktDataDescription.aggGroup());
+        }
     }
 
     @Override
     public void tickNews(int tickerId, long timeStamp, String providerCode, String articleId,
                          String headline, String extraData) {
+        log.info("Tick News. TickerId: " + tickerId + ", TimeStamp: " + timeStamp + ", ProviderCode: " + providerCode
+                + ", ArticleId: " + articleId + ", Headline: " + headline + ", ExtraData: " + extraData + "\n");
     }
 
     @Override
     public void smartComponents(int reqId, java.util.Map<Integer, java.util.Map.Entry<String, Character>> theMap) {
+        log.info("smart components req id:" + reqId);
+
+        for (Map.Entry<Integer, Map.Entry<String, Character>> item : theMap.entrySet()) {
+            log.info("bit number: " + item.getKey() +
+                    ", exchange: " + item.getValue().getKey() + ", exchange letter: " + item.getValue().getValue());
+        }
     }
 
     @Override
     public void tickReqParams(int tickerId, double minTick, String bboExchange, int snapshotPermissions) {
+        log.info("Tick req params. Ticker Id:" + tickerId + ", Min tick: " + minTick + ", bbo exchange: " + bboExchange
+                + ", Snapshot permissions: " + snapshotPermissions);
     }
 
     @Override
     public void newsProviders(NewsProvider[] newsProviders) {
+        for (NewsProvider np : newsProviders) {
+            log.info("News Provider. Provider Code: " + np.providerCode() + ", Provider Name: " + np.providerName()
+                    + "\n");
+        }
     }
 
     @Override
     public void newsArticle(int requestId, int articleType, String articleText) {
+        log.info("News Article. Request Id: " + requestId + ", Article Type: " + articleType + ", Article Text: "
+                + articleText + "\n");
     }
 
     @Override
     public void historicalNews(int requestId, String time, String providerCode, String articleId,
                                String headline) {
+        log.info("Historical News. Request Id: " + requestId + ", Time: " + time + ", Provider Code: " + providerCode
+                + ", Article Id: " + articleId + ", Headline: " + headline + "\n");
     }
 
     @Override
     public void historicalNewsEnd(int requestId, boolean hasMore) {
+        log.info("Historical News End. Request Id: " + requestId + ", Has more: " + hasMore + "\n");
     }
 
     @Override
     public void headTimestamp(int reqId, String headTimestamp) {
+        log.info("Head Timestamp. Request Id: " + reqId + ", Head Timestamp: " + headTimestamp + "\n");
     }
 
     @Override
     public void histogramData(int reqId, java.util.List<HistogramEntry> items) {
+        log.info("Histogram Data. Request Id: " + reqId + ", Items: " + items + "\n");
     }
 
     @Override
     public void historicalDataUpdate(int reqId, Bar bar) {
+        log.info("HistoricalDataUpdate. " + reqId + " - Date: " + bar.time() + ", Open: " + bar.open() + ", High: "
+                + bar.high() + ", Low: " + bar.low() + ", Close: " + bar.close() + ", Volume: " + bar.volume()
+                + ", Count: " + bar.count() + ", WAP: " + bar.wap());
     }
 
     @Override
-    public void rerouteMktDataReq(int reqId, int conid, String exchange) {
+    public void rerouteMktDataReq(int reqId, int conId, String exchange) {
+        log.info(EWrapperMsgGenerator.rerouteMktDataReq(reqId, conId, exchange));
     }
 
     @Override
-    public void rerouteMktDepthReq(int reqId, int conid, String exchange) {
+    public void rerouteMktDepthReq(int reqId, int conId, String exchange) {
+        log.info(EWrapperMsgGenerator.rerouteMktDepthReq(reqId, conId, exchange));
     }
 
     @Override
     public void marketRule(int marketRuleId, PriceIncrement[] priceIncrements) {
+        DecimalFormat df = new DecimalFormat("#.#");
+        df.setMaximumFractionDigits(340);
+        log.info("Market Rule Id: " + marketRuleId);
+        for (PriceIncrement pi : priceIncrements) {
+            log.info("Price Increment. Low Edge: " + df.format(pi.lowEdge()) + ", Increment: "
+                    + df.format(pi.increment()));
+        }
     }
 
     @Override
     public void pnl(int reqId, double dailyPnL, double unrealizedPnL, double realizedPnL) {
+        log.info(EWrapperMsgGenerator.pnl(reqId, dailyPnL, unrealizedPnL, realizedPnL));
     }
 
     @Override
     public void pnlSingle(int reqId, Decimal pos, double dailyPnL, double unrealizedPnL,
                           double realizedPnL, double value) {
+        log.info(EWrapperMsgGenerator.pnlSingle(reqId, pos, dailyPnL, unrealizedPnL, realizedPnL, value));
     }
 
     @Override
     public void historicalTicks(int reqId, java.util.List<HistoricalTick> ticks, boolean done) {
+        for (HistoricalTick tick : ticks) {
+            log.info(EWrapperMsgGenerator.historicalTick(reqId, tick.time(), tick.price(), tick.size()));
+        }
     }
 
     @Override
     public void historicalTicksBidAsk(int reqId, java.util.List<HistoricalTickBidAsk> ticks, boolean done) {
+        for (HistoricalTickBidAsk tick : ticks) {
+            log.info(EWrapperMsgGenerator.historicalTickBidAsk(reqId, tick.time(), tick.tickAttribBidAsk(),
+                    tick.priceBid(), tick.priceAsk(), tick.sizeBid(),
+                    tick.sizeAsk()));
+        }
     }
 
     @Override
     public void historicalTicksLast(int reqId, java.util.List<HistoricalTickLast> ticks, boolean done) {
+        for (HistoricalTickLast tick : ticks) {
+            log.info(EWrapperMsgGenerator.historicalTickLast(reqId, tick.time(), tick.tickAttribLast(), tick.price(),
+                    tick.size(), tick.exchange(),
+                    tick.specialConditions()));
+        }
     }
 
     @Override
     public void tickByTickAllLast(int reqId, int tickType, long time, double price, Decimal size,
                                   TickAttribLast tickAttribLast, String exchange, String specialConditions) {
+        log.info(EWrapperMsgGenerator.tickByTickAllLast(reqId, tickType, time, price, size, tickAttribLast, exchange,
+                specialConditions));
     }
 
     @Override
     public void tickByTickBidAsk(int reqId, long time, double bidPrice, double askPrice,
                                  Decimal bidSize, Decimal askSize, TickAttribBidAsk tickAttribBidAsk) {
+//        timeSeriesHandler.addToStream(reqId, bidPrice, TickType.BID);
+//        timeSeriesHandler.addToStream(reqId, askPrice, TickType.ASK);
     }
 
     @Override
     public void tickByTickMidPoint(int reqId, long time, double midPoint) {
+        log.info(EWrapperMsgGenerator.tickByTickMidPoint(reqId, time, midPoint));
     }
 
     @Override
     public void orderBound(long orderId, int apiClientId, int apiOrderId) {
+        log.info(EWrapperMsgGenerator.orderBound(orderId, apiClientId, apiOrderId));
     }
 
     @Override
     public void completedOrder(Contract contract, Order order, OrderState orderState) {
+        log.info(EWrapperMsgGenerator.completedOrder(contract, order, orderState));
     }
 
     @Override
     public void completedOrdersEnd() {
+        log.info(EWrapperMsgGenerator.completedOrdersEnd());
     }
 
     @Override
@@ -630,12 +713,12 @@ public class TWSConnectionManager implements EWrapper {
         final int currentId = autoIncrement.getAndIncrement();
         client.reqContractDetails(currentId, contract);
         TwsResultHolder<ContractDetails> details = twsResultHandler.getResult(currentId);
-        Optional<ContractHolder> contractHolder = contractRepository.findById(details.getResult().conid());
-        contractHolder.ifPresent(holder -> {
-            holder.setDetails(details.getResult());
-            // TODO save from ContractManager
-            contractRepository.save(holder);
-        });
+//        Optional<ContractHolder> contractHolder = contractRepository.findById(details.getResult().conid());
+//        contractHolder.ifPresent(holder -> {
+//            holder.setDetails(details.getResult());
+//            // TODO save from ContractManager
+//            contractRepository.save(holder);
+//        });
         return details;
     }
 
