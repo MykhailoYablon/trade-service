@@ -1,21 +1,28 @@
 package com.example.tradeservice.service;
 
+import com.example.tradeservice.entity.DataRequest;
+import com.example.tradeservice.entity.HistoricalData;
 import com.example.tradeservice.model.ContractHolder;
-import com.example.tradeservice.model.Option;
 import com.example.tradeservice.model.PositionHolder;
-//import com.example.tradeservice.repository.ContractRepository;
+import com.example.tradeservice.model.enums.TimeFrame;
+import com.example.tradeservice.repository.DataRequestRepository;
+import com.example.tradeservice.repository.HistoricalDataRepository;
 import com.ib.client.*;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
 
+import java.math.BigDecimal;
 import java.text.DecimalFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static com.example.tradeservice.service.TimeUtils.parseIbTime;
 
 
 @Slf4j
@@ -29,8 +36,10 @@ public class TWSConnectionManager implements EWrapper {
     private OrderTracker orderTracker;
     private CountDownLatch connectionLatch;
     private final TwsResultHandler twsResultHandler;
-//    private final ContractRepository contractRepository;
     private final AtomicInteger autoIncrement = new AtomicInteger();
+    private String managedAccount;
+    private final HistoricalDataRepository historicalDataRepository;
+    private final DataRequestRepository dataRequestRepository;
 
     // Connection parameters
     private static final String HOST = "127.0.0.1";
@@ -38,12 +47,15 @@ public class TWSConnectionManager implements EWrapper {
     private static final int CLIENT_ID = 0;
 
     public TWSConnectionManager(PositionTracker positionTracker,
-                                OrderTracker orderTracker) {
+                                OrderTracker orderTracker, HistoricalDataRepository historicalDataRepository,
+                                DataRequestRepository dataRequestRepository) {
+        this.dataRequestRepository = dataRequestRepository;
         this.client = new EClientSocket(this, readerSignal);
         this.positionTracker = positionTracker;
         this.orderTracker = orderTracker;
         this.connectionLatch = new CountDownLatch(1);
         this.twsResultHandler = new TwsResultHandler();
+        this.historicalDataRepository = historicalDataRepository;
 //        this.contractRepository = contractRepository;
     }
 
@@ -52,11 +64,6 @@ public class TWSConnectionManager implements EWrapper {
         client.eConnect(HOST, PORT, CLIENT_ID);
 
         log.info("Client is connected " + client.isConnected());
-
-        // Wait for connection
-//        if (!connectionLatch.await(60, TimeUnit.SECONDS)) {
-//            throw new RuntimeException("Connection timeout");
-//        }
 
         final EReader reader = new EReader(client, readerSignal);
         reader.start();
@@ -74,7 +81,7 @@ public class TWSConnectionManager implements EWrapper {
             }
         }).start();
 
-         Thread.sleep(2000); // avoid "Ignoring API request 'jextend.cs' since API is not accepted." error
+        Thread.sleep(2000); // avoid "Ignoring API request 'jextend.cs' since API is not accepted." error
 
         log.info("Connected to TWS successfully!");
 
@@ -83,20 +90,6 @@ public class TWSConnectionManager implements EWrapper {
         client.reqAllOpenOrders(); // initial request for open orders
 
         client.getTwsConnectionTime();
-
-
-        requestExistingData();
-
-        try {
-            Thread.sleep(5000); // Example: wait for 5 seconds to receive data
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        Collection<PositionHolder> allPositions = positionTracker.getAllPositions();
-
-        log.info("Positions: {}", allPositions);
-
-//        orderManagerService.setClient(clientSocket);
     }
 
     public void requestExistingData() {
@@ -111,9 +104,12 @@ public class TWSConnectionManager implements EWrapper {
         // Request all open orders
         client.reqAllOpenOrders();
 
+        //request all P&L for current positions
+        client.reqPnLSingle(autoIncrement.getAndIncrement(), this.managedAccount, "", 265598);
+
         // Request executed trades for today
-        ExecutionFilter filter = new ExecutionFilter();
-        client.reqExecutions(9003, filter);
+//        ExecutionFilter filter = new ExecutionFilter();
+//        client.reqExecutions(9003, filter);
     }
 
     public void disconnect() {
@@ -199,7 +195,10 @@ public class TWSConnectionManager implements EWrapper {
     @Override
     public void position(String account, Contract contract, Decimal position, double avgCost) {
         positionTracker.addPosition(new PositionHolder(contract, position, avgCost));
-//        positionTracker.updatePosition(account, contract, position, avgCost);
+        int reqId = autoIncrement.getAndIncrement();
+        positionTracker.createDataRequest(reqId, contract, "5 D", "5 mins");
+        client.reqHistoricalData(reqId, contract, "", "1 D", "5 mins",
+                "TRADES", 1, 1, false, null);
     }
 
     @Override
@@ -306,6 +305,7 @@ public class TWSConnectionManager implements EWrapper {
 
     @Override
     public void managedAccounts(String accountsList) {
+        this.managedAccount = accountsList;
         log.info("Managed accounts: " + accountsList);
     }
 
@@ -374,6 +374,37 @@ public class TWSConnectionManager implements EWrapper {
         log.info("HistoricalData. " + reqId + " - Date: " + bar.time() + ", Open: " + bar.open() + ", High: "
                 + bar.high() + ", Low: " + bar.low() + ", Close: " + bar.close() + ", Volume: " + bar.volume()
                 + ", Count: " + bar.count() + ", WAP: " + bar.wap());
+
+        //Move this to corresponding service
+        DataRequest request = dataRequestRepository.findByReqId(reqId)
+                .orElseThrow(() -> new RuntimeException("DataRequest not found for reqId: " + reqId));
+
+
+        // Convert IB bar to entity
+        HistoricalData data = HistoricalData.builder()
+                .position(request.getPosition())
+                .timestamp(parseIbTime(bar.time()))
+                .timeframe(TimeFrame.FIVE_MIN)
+                .open(BigDecimal.valueOf(bar.open()))
+                .high(BigDecimal.valueOf(bar.high()))
+                .low(BigDecimal.valueOf(bar.low()))
+                .close(BigDecimal.valueOf(bar.close()))
+                .volume(bar.volume().longValue())
+                .count(bar.count())
+                .wap(bar.wap().value())
+                .build();
+
+        // Save historical data (ON DUPLICATE KEY UPDATE if using MySQL)
+        try {
+            historicalDataRepository.save(data);
+        } catch (DataIntegrityViolationException e) {
+            // Handle duplicate - update existing record
+            log.debug("Duplicate bar data for reqId={}, timestamp={}", reqId, data.getTimestamp());
+        }
+
+        log.debug("Historical data saved: reqId={}, timestamp={}, close={}",
+                reqId, data.getTimestamp(), data.getClose());
+
     }
 
     @Override
