@@ -1,6 +1,7 @@
 package com.example.tradeservice.entity;
 
 import com.example.tradeservice.model.enums.TimeFrame;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -29,6 +30,7 @@ public class HistoricalData {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "position_id", nullable = false)
+    @JsonBackReference
     private Position position;
 
     @Column(nullable = false)

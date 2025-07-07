@@ -1,5 +1,6 @@
 package com.example.tradeservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -54,5 +55,6 @@ public class Position {
 
     // One-to-many relationship with historical data
     @OneToMany(mappedBy = "position", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonManagedReference
     private List<HistoricalData> historicalData = new ArrayList<>();
 } 
