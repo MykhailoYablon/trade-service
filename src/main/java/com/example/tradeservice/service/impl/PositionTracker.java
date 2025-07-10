@@ -1,7 +1,6 @@
-package com.example.tradeservice.service;
+package com.example.tradeservice.service.impl;
 
 import com.example.tradeservice.entity.DataRequest;
-import com.example.tradeservice.entity.HistoricalData;
 import com.example.tradeservice.entity.Position;
 import com.example.tradeservice.model.PositionHolder;
 import com.example.tradeservice.model.enums.RequestStatus;
@@ -18,7 +17,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j

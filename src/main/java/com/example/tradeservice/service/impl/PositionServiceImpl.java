@@ -1,7 +1,8 @@
-package com.example.tradeservice.service;
+package com.example.tradeservice.service.impl;
 
 import com.example.tradeservice.mapper.PositionMapper;
 import com.example.tradeservice.entity.Position;
+import com.example.tradeservice.service.PositionService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

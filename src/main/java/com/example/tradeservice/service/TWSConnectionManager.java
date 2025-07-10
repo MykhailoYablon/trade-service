@@ -7,6 +7,8 @@ import com.example.tradeservice.model.PositionHolder;
 import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.repository.DataRequestRepository;
 import com.example.tradeservice.repository.HistoricalDataRepository;
+import com.example.tradeservice.service.impl.OrderTrackerImpl;
+import com.example.tradeservice.service.impl.PositionTracker;
 import com.ib.client.*;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -16,8 +18,6 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -33,8 +33,9 @@ public class TWSConnectionManager implements EWrapper {
     private final EReaderSignal readerSignal = new EJavaSignal();
     private EReader reader;
     private PositionTracker positionTracker;
-    private OrderTracker orderTracker;
+    private OrderTrackerImpl orderTracker;
     private CountDownLatch connectionLatch;
+    OrderTracker orderManagerService;
     private final TwsResultHandler twsResultHandler;
     private final AtomicInteger autoIncrement = new AtomicInteger();
     private String managedAccount;
@@ -47,7 +48,7 @@ public class TWSConnectionManager implements EWrapper {
     private static final int CLIENT_ID = 0;
 
     public TWSConnectionManager(PositionTracker positionTracker,
-                                OrderTracker orderTracker, HistoricalDataRepository historicalDataRepository,
+                                OrderTrackerImpl orderTracker, HistoricalDataRepository historicalDataRepository,
                                 DataRequestRepository dataRequestRepository) {
         this.dataRequestRepository = dataRequestRepository;
         this.client = new EClientSocket(this, readerSignal);
@@ -210,7 +211,7 @@ public class TWSConnectionManager implements EWrapper {
     // Order callbacks
     @Override
     public void openOrder(int orderId, Contract contract, Order order, OrderState orderState) {
-//        orderTracker.updateOrder(orderId, contract, order, orderState);
+        orderManagerService.setOrder(contract, order, orderState);
     }
 
     @Override

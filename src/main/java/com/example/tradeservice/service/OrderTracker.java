@@ -1,38 +1,14 @@
 package com.example.tradeservice.service;
 
-import com.example.tradeservice.model.OrderHolder;
-import com.ib.client.Decimal;
-import com.ib.client.EClientSocket;
-import lombok.Setter;
-import org.springframework.context.annotation.Scope;
-import org.springframework.lang.NonNull;
-import org.springframework.stereotype.Service;
+import com.ib.client.Contract;
+import com.ib.client.Order;
+import com.ib.client.OrderState;
+import com.ib.client.Types;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.math.BigDecimal;
 
-@Service
-@Scope("singleton")
-public class OrderTracker {
+public interface OrderTracker {
+    void placeLimitOrder(Contract contract, Types.Action action, BigDecimal quantity, double price);
 
-    @Setter
-    private int orderId = 100;
-
-    private Map<Integer, OrderHolder> orders = new HashMap<>();
-
-    @Setter
-    @NonNull
-    private EClientSocket client;
-
-    public void updateOrderStatus(int orderId, String status, Decimal filled, Decimal remaining, double avgFillPrice) {
-        OrderHolder orderHolder = orders.get(orderId);
-        if(orderHolder != null) {
-            orderHolder.getOrderState().status(status);
-            orderHolder.getOrder().filledQuantity(filled);
-        } else {
-            throw new RuntimeException("Order empty for orderId=" + orderId);
-        }
-    }
-
-
+    void setOrder(Contract contract, Order order, OrderState orderState);
 }
