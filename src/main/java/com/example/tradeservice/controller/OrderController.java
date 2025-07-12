@@ -1,9 +1,8 @@
 package com.example.tradeservice.controller;
 
-import com.example.tradeservice.service.ContractManagerService;
 import com.example.tradeservice.service.OrderTracker;
+import com.example.tradeservice.service.impl.PositionTracker;
 import com.ib.client.Contract;
-import com.ib.client.Types;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,13 +14,18 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class OrderController {
 
-    ContractManagerService contractManagerService;
+    PositionTracker positionTracker;
     OrderTracker orderTracker;
 
     @PostMapping
-    void placeOrder(@RequestParam int conid, @RequestParam String action, @RequestParam BigDecimal quantity,
+    void placeOrder(@RequestParam String conid, @RequestParam String action, @RequestParam BigDecimal quantity,
                     @RequestParam double price) {
-        Contract contract = contractManagerService.getContractHolder(conid).getContract();
-        orderTracker.placeLimitOrder(contract, Types.Action.valueOf(action), quantity, price);
+        Contract contract = positionTracker.getPositionByConid(Integer.valueOf(conid)).getContract();
+        orderTracker.placeLimitOrder(contract, action, quantity, price);
+    }
+
+    @GetMapping
+    void getAllOrders() {
+        orderTracker.getAllOrders();
     }
 }

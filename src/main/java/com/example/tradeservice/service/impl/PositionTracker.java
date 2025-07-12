@@ -70,7 +70,7 @@ public class PositionTracker {
         return positions.get(contract.conid());
     }
 
-    public PositionHolder getPositionByConid(int conid) {
+    public PositionHolder getPositionByConid(Integer conid) {
         return positions.get(conid);
     }
 

@@ -57,6 +57,8 @@ public class TWSConnectionManager implements EWrapper {
         this.connectionLatch = new CountDownLatch(1);
         this.twsResultHandler = new TwsResultHandler();
         this.historicalDataRepository = historicalDataRepository;
+
+        orderTracker.setClient(client);
 //        this.contractRepository = contractRepository;
     }
 
@@ -197,8 +199,8 @@ public class TWSConnectionManager implements EWrapper {
     public void position(String account, Contract contract, Decimal position, double avgCost) {
         positionTracker.addPosition(new PositionHolder(contract, position, avgCost));
         int reqId = autoIncrement.getAndIncrement();
-        positionTracker.createDataRequest(reqId, contract, "5 D", "5 mins");
-        client.reqHistoricalData(reqId, contract, "", "1 D", "5 mins",
+        positionTracker.createDataRequest(reqId, contract, "3 D", "5 mins");
+        client.reqHistoricalData(reqId, contract, "", "3 D", "5 mins",
                 "TRADES", 1, 1, false, null);
     }
 

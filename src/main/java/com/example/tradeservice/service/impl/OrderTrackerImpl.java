@@ -28,14 +28,19 @@ public class OrderTrackerImpl implements OrderTracker {
     private EClientSocket client;
 
     @Override
-    public void placeLimitOrder(Contract contract, Types.Action action, BigDecimal quantity, double price) {
-        Order order = buildLimitOrder(action.getApiString(), quantity, price);
+    public void placeLimitOrder(Contract contract, String action, BigDecimal quantity, double price) {
+        Order order = buildLimitOrder(quantity, price, Types.Action.valueOf(action).getApiString());
         client.placeOrder(orderId++, contract, order);
     }
 
     @Override
     public void setOrder(Contract contract, Order order, OrderState orderState) {
         orders.put(order.permId(), new OrderHolder(order.permId(), order, contract, orderState));
+    }
+
+    @Override
+    public void getAllOrders() {
+
     }
 
     public Collection<OrderHolder> getActiveOrdersByContract(Contract contract) {
@@ -55,7 +60,7 @@ public class OrderTrackerImpl implements OrderTracker {
         }
     }
 
-    public static Order buildLimitOrder(String action, BigDecimal quantity, double limitPrice) {
+    public static Order buildLimitOrder(BigDecimal quantity, double limitPrice, String action) {
         // ! [limitorder]
         Order order = new Order();
         order.action(action);
