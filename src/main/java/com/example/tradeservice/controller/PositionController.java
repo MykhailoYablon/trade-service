@@ -44,9 +44,4 @@ public class PositionController {
 
         return data;
     }
-
-    @PostMapping
-    public Position createPosition(@RequestBody Position position) {
-        return positionService.createPosition(position);
-    }
 }
