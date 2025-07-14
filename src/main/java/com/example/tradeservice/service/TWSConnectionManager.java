@@ -1,5 +1,6 @@
 package com.example.tradeservice.service;
 
+import com.example.tradeservice.entity.Account;
 import com.example.tradeservice.entity.DataRequest;
 import com.example.tradeservice.entity.HistoricalData;
 import com.example.tradeservice.model.ContractHolder;
@@ -40,6 +41,7 @@ public class TWSConnectionManager implements EWrapper {
     private String managedAccount;
     private final HistoricalDataRepository historicalDataRepository;
     private final DataRequestRepository dataRequestRepository;
+    private final AccountService accountService;
 
     // Connection parameters
     private static final String HOST = "127.0.0.1";
@@ -47,12 +49,14 @@ public class TWSConnectionManager implements EWrapper {
     private static final int CLIENT_ID = 0;
 
     public TWSConnectionManager(PositionTracker positionTracker,
+                                AccountService accountService,
                                 OrderTrackerImpl orderTracker, HistoricalDataRepository historicalDataRepository,
                                 DataRequestRepository dataRequestRepository) {
         this.dataRequestRepository = dataRequestRepository;
         this.client = new EClientSocket(this, readerSignal);
         this.positionTracker = positionTracker;
         this.orderTracker = orderTracker;
+        this.accountService = accountService;
         this.connectionLatch = new CountDownLatch(1);
         this.twsResultHandler = new TwsResultHandler();
         this.historicalDataRepository = historicalDataRepository;
@@ -91,7 +95,7 @@ public class TWSConnectionManager implements EWrapper {
         client.reqAllOpenOrders(); // initial request for open orders
 
         // Request account summary
-        client.reqAccountSummary(9001, "All", "TotalCashValue,NetLiquidation");
+        client.reqAccountSummary(CLIENT_ID, "All", "TotalCashValue,NetLiquidation,TotalCashBalance,NetDividend,CashBalance");
 
         // Request all positions
         client.reqPositions();
@@ -168,8 +172,10 @@ public class TWSConnectionManager implements EWrapper {
     // Account and Portfolio callbacks
     @Override
     public void accountSummary(int reqId, String account, String tag, String value, String currency) {
-        log.info("Acct Summary. ReqId: " + reqId + ", Acct: " + account + ", Tag: " + tag + ", Value: " + value
+        log.info("accountSummaryEndReqId: " + reqId + ", Acct: " + account + ", Tag: " + tag + ", Value: " + value
                 + ", Currency: " + currency);
+        accountService.setAccount("Acct", account);
+        accountService.setAccount(tag, value);
     }
 
     @Override
@@ -386,9 +392,9 @@ public class TWSConnectionManager implements EWrapper {
 
     @Override
     public void historicalData(int reqId, Bar bar) {
-        log.info("HistoricalData. " + reqId + " - Date: " + bar.time() + ", Open: " + bar.open() + ", High: "
-                + bar.high() + ", Low: " + bar.low() + ", Close: " + bar.close() + ", Volume: " + bar.volume()
-                + ", Count: " + bar.count() + ", WAP: " + bar.wap());
+//        log.info("HistoricalData. " + reqId + " - Date: " + bar.time() + ", Open: " + bar.open() + ", High: "
+//                + bar.high() + ", Low: " + bar.low() + ", Close: " + bar.close() + ", Volume: " + bar.volume()
+//                + ", Count: " + bar.count() + ", WAP: " + bar.wap());
 
         //Move this to corresponding service
         DataRequest request = dataRequestRepository.findByReqId(reqId)
