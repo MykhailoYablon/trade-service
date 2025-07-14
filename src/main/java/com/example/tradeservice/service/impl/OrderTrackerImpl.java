@@ -39,8 +39,8 @@ public class OrderTrackerImpl implements OrderTracker {
     }
 
     @Override
-    public void getAllOrders() {
-
+    public Collection<OrderHolder> getAllOrders() {
+        return orders.values();
     }
 
     public Collection<OrderHolder> getActiveOrdersByContract(Contract contract) {

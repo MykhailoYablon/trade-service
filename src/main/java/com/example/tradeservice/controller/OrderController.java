@@ -1,5 +1,6 @@
 package com.example.tradeservice.controller;
 
+import com.example.tradeservice.model.OrderHolder;
 import com.example.tradeservice.service.OrderTracker;
 import com.example.tradeservice.service.impl.PositionTracker;
 import com.ib.client.Contract;
@@ -7,6 +8,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 
 @CrossOrigin(origins = "*")
 @RestController
@@ -25,7 +27,7 @@ public class OrderController {
     }
 
     @GetMapping
-    void getAllOrders() {
-        orderTracker.getAllOrders();
+    Collection<OrderHolder> getAllOrders() {
+        return orderTracker.getAllOrders();
     }
 }
