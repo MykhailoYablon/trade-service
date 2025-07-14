@@ -16,9 +16,9 @@ import java.util.Optional;
 @Service
 @Slf4j
 public class PositionServiceImpl implements PositionService {
+
     private final PositionTracker positionTracker;
     private final PositionMapper positionMapper;
-
 
     @Transactional(readOnly = true)
     @Override

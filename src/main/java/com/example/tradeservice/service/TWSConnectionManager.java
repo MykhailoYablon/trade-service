@@ -35,7 +35,6 @@ public class TWSConnectionManager implements EWrapper {
     private PositionTracker positionTracker;
     private OrderTrackerImpl orderTracker;
     private CountDownLatch connectionLatch;
-    OrderTracker orderManagerService;
     private final TwsResultHandler twsResultHandler;
     private final AtomicInteger autoIncrement = new AtomicInteger();
     private String managedAccount;
@@ -58,7 +57,6 @@ public class TWSConnectionManager implements EWrapper {
         this.twsResultHandler = new TwsResultHandler();
         this.historicalDataRepository = historicalDataRepository;
 
-        orderTracker.setClient(client);
 //        this.contractRepository = contractRepository;
     }
 
@@ -92,7 +90,21 @@ public class TWSConnectionManager implements EWrapper {
         client.reqAutoOpenOrders(true); // subscribe to order changes
         client.reqAllOpenOrders(); // initial request for open orders
 
+        // Request account summary
+        client.reqAccountSummary(9001, "All", "TotalCashValue,NetLiquidation");
+
+        // Request all positions
+        client.reqPositions();
+
+        // Request all open orders
+        client.reqOpenOrders();
+
+        //request all P&L for current positions
+        client.reqPnLSingle(autoIncrement.getAndIncrement(), this.managedAccount, "", 265598);
+
         client.getTwsConnectionTime();
+
+        orderTracker.setClient(client);
     }
 
     public void requestExistingData() {
@@ -213,13 +225,13 @@ public class TWSConnectionManager implements EWrapper {
     // Order callbacks
     @Override
     public void openOrder(int orderId, Contract contract, Order order, OrderState orderState) {
-        orderManagerService.setOrder(contract, order, orderState);
+        orderTracker.setOrder(contract, order, orderState);
     }
 
     @Override
     public void openOrderEnd() {
         log.info("Order list retrieved");
-//        orderTracker.printOrders();
+//        orderTracker.getAllOrders();
     }
 
     @Override
