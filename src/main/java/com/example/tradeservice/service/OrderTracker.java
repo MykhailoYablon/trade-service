@@ -1,6 +1,6 @@
 package com.example.tradeservice.service;
 
-import com.example.tradeservice.model.OrderHolder;
+import com.example.tradeservice.model.OrderModel;
 import com.ib.client.Contract;
 import com.ib.client.Order;
 import com.ib.client.OrderState;
@@ -13,5 +13,5 @@ public interface OrderTracker {
 
     void setOrder(Contract contract, Order order, OrderState orderState);
 
-    Collection<OrderHolder> getAllOrders();
+    Collection<OrderModel> getAllOrders();
 }

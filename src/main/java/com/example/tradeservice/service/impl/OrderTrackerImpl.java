@@ -1,6 +1,8 @@
 package com.example.tradeservice.service.impl;
 
+import com.example.tradeservice.mapper.OrderMapper;
 import com.example.tradeservice.model.OrderHolder;
+import com.example.tradeservice.model.OrderModel;
 import com.example.tradeservice.service.OrderTracker;
 import com.ib.client.*;
 import lombok.Setter;
@@ -21,11 +23,17 @@ public class OrderTrackerImpl implements OrderTracker {
     @Setter
     private int orderId = 100;
 
+    private final OrderMapper orderMapper;
+
     private Map<Integer, OrderHolder> orders = new HashMap<>();
 
     @Setter
     @NonNull
     private EClientSocket client;
+
+    public OrderTrackerImpl(OrderMapper orderMapper) {
+        this.orderMapper = orderMapper;
+    }
 
     @Override
     public void placeLimitOrder(Contract contract, String action, BigDecimal quantity, double price) {
@@ -39,8 +47,10 @@ public class OrderTrackerImpl implements OrderTracker {
     }
 
     @Override
-    public Collection<OrderHolder> getAllOrders() {
-        return orders.values();
+    public Collection<OrderModel> getAllOrders() {
+        return orders.values().stream()
+                .map(orderMapper::convertToOrder)
+                .toList();
     }
 
     public Collection<OrderHolder> getActiveOrdersByContract(Contract contract) {
@@ -67,6 +77,8 @@ public class OrderTrackerImpl implements OrderTracker {
         order.orderType("LMT");
         order.totalQuantity(Decimal.get(quantity));
         order.lmtPrice(limitPrice);
+        //transmit order to IB
+        order.transmit(true);
         // ! [limitorder]
         return order;
     }
