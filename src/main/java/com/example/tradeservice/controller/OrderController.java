@@ -1,6 +1,7 @@
 package com.example.tradeservice.controller;
 
 import com.example.tradeservice.model.OrderHolder;
+import com.example.tradeservice.model.OrderModel;
 import com.example.tradeservice.service.OrderTracker;
 import com.example.tradeservice.service.impl.PositionTracker;
 import com.ib.client.Contract;
@@ -27,7 +28,7 @@ public class OrderController {
     }
 
     @GetMapping
-    Collection<OrderHolder> getAllOrders() {
+    Collection<OrderModel> getAllOrders() {
         return orderTracker.getAllOrders();
     }
 }
