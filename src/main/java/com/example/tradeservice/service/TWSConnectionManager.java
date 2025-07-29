@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
@@ -357,7 +358,7 @@ public class TWSConnectionManager implements EWrapper {
 
     @Override
     public void contractDetails(int reqId, ContractDetails contractDetails) {
-        twsResultHandler.setResult(reqId, new TwsResultHolder<ContractDetails>(contractDetails));
+        twsResultHandler.setResult(reqId, new TwsResultHolder<>(contractDetails));
     }
 
     @Override
@@ -772,6 +773,15 @@ public class TWSConnectionManager implements EWrapper {
 //            contractRepository.save(holder);
 //        });
         return details;
+    }
+
+    public TwsResultHolder<List<Contract>> searchContract(String search) {
+        if (StringUtils.hasLength(search)) {
+            final int currentId = autoIncrement.getAndIncrement();
+            client.reqMatchingSymbols(currentId, search);
+            return twsResultHandler.getResult(currentId);
+        }
+        return new TwsResultHolder("Search parameter cannot be empty");
     }
 
 }

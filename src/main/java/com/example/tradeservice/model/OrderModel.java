@@ -1,6 +1,5 @@
 package com.example.tradeservice.model;
 
-import com.ib.client.Decimal;
 import com.ib.client.OrderStatus;
 import com.ib.client.Types;
 import lombok.AllArgsConstructor;
