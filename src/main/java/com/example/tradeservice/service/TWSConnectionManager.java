@@ -67,49 +67,54 @@ public class TWSConnectionManager implements EWrapper {
 
     @PostConstruct
     private void connect() throws InterruptedException {
-        client.eConnect(HOST, PORT, CLIENT_ID);
+        try {
+            client.eConnect(HOST, PORT, CLIENT_ID);
 
-        log.info("Client is connected " + client.isConnected());
+            log.info("Client is connected " + client.isConnected());
 
-        final EReader reader = new EReader(client, readerSignal);
-        reader.start();
+            final EReader reader = new EReader(client, readerSignal);
+            reader.start();
 
-        // An additional thread is created in this program design to empty the messaging
-        // queue
-        new Thread(() -> {
-            while (client.isConnected()) {
-                readerSignal.waitForSignal();
-                try {
-                    reader.processMsgs();
-                } catch (Exception e) {
-                    log.error(e.getMessage());
+            // An additional thread is created in this program design to empty the messaging
+            // queue
+            new Thread(() -> {
+                while (client.isConnected()) {
+                    readerSignal.waitForSignal();
+                    try {
+                        reader.processMsgs();
+                    } catch (Exception e) {
+                        log.error(e.getMessage());
+                    }
                 }
-            }
-        }).start();
+            }).start();
 
-        Thread.sleep(2000); // avoid "Ignoring API request 'jextend.cs' since API is not accepted." error
+            Thread.sleep(2000); // avoid "Ignoring API request 'jextend.cs' since API is not accepted." error
 
-        log.info("Connected to TWS successfully!");
+            log.info("Connected to TWS successfully!");
 
-        client.reqPositions(); // subscribe to positions
-        client.reqAutoOpenOrders(true); // subscribe to order changes
-        client.reqAllOpenOrders(); // initial request for open orders
+            client.reqPositions(); // subscribe to positions
+            client.reqAutoOpenOrders(true); // subscribe to order changes
+            client.reqAllOpenOrders(); // initial request for open orders
 
-        // Request account summary
-        client.reqAccountSummary(CLIENT_ID, "All", "TotalCashValue,NetLiquidation,TotalCashBalance,NetDividend,CashBalance");
+            // Request account summary
+            client.reqAccountSummary(CLIENT_ID, "All", "TotalCashValue,NetLiquidation,TotalCashBalance,NetDividend,CashBalance");
 
-        // Request all positions
-        client.reqPositions();
+            // Request all positions
+            client.reqPositions();
 
-        // Request all open orders
-        client.reqOpenOrders();
+            // Request all open orders
+            client.reqOpenOrders();
 
-        //request all P&L for current positions
-        client.reqPnLSingle(autoIncrement.getAndIncrement(), this.managedAccount, "", 265598);
+            //request all P&L for current positions
+            client.reqPnLSingle(autoIncrement.getAndIncrement(), this.managedAccount, "", 265598);
 
-        client.getTwsConnectionTime();
+            client.getTwsConnectionTime();
 
-        orderTracker.setClient(client);
+            orderTracker.setClient(client);
+        } catch (Exception e) {
+            log.error("Error connecting to TWS: {}", e.getMessage());
+//            throw new RuntimeException(e);
+        }
     }
 
     public void requestExistingData() {
