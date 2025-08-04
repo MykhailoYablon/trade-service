@@ -118,6 +118,11 @@ public class TWSConnectionManager implements EWrapper {
             client.getTwsConnectionTime();
 
             orderTracker.setClient(client);
+
+            //test subscribe to market data
+
+
+
         } catch (Exception e) {
             log.error("Error connecting to TWS: {}", e.getMessage());
 //            throw new RuntimeException(e);
@@ -778,12 +783,12 @@ public class TWSConnectionManager implements EWrapper {
         final int currentId = autoIncrement.getAndIncrement();
         client.reqContractDetails(currentId, contract);
         TwsResultHolder<ContractDetails> details = twsResultHandler.getResult(currentId);
-//        Optional<ContractHolder> contractHolder = contractRepository.findById(details.getResult().conid());
-//        contractHolder.ifPresent(holder -> {
-//            holder.setDetails(details.getResult());
-//            // TODO save from ContractManager
-//            contractRepository.save(holder);
-//        });
+        Optional<ContractHolder> contractHolder = contractRepository.findById(details.getResult().conid());
+        contractHolder.ifPresent(holder -> {
+            holder.setDetails(details.getResult());
+            // TODO save from ContractManager
+            contractRepository.save(holder);
+        });
         return details;
     }
 

@@ -20,4 +20,9 @@ public class ContractController {
     List<ContractModel> searchContract(@RequestParam String query) {
         return contractManagerService.searchContract(query);
     }
+
+    @GetMapping("/market-data")
+    void getMarketData(@RequestParam int conid) {
+        contractManagerService.getMarketData(conid);
+    }
 }

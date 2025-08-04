@@ -7,7 +7,7 @@ spring:
 # Redis config
   data:
     redis:
-      host: storage
+      host: 127.0.0.1
       port: 6379
       password:
       timeout: 60000
