@@ -51,7 +51,7 @@ public class ContractManagerServiceImpl implements ContractManagerService {
                 contractRepository.save(twsResult.getResult());
                 var contractHolder =  twsResult.getResult();
                 Contract contract = contractHolder.getContract();
-                tws.subscribeMarketData(contract, false);
+//                tws.subscribeMarketData(contract, false);
                 log.info("Subscribed to market data for contract - " + contract.symbol());
             }
 

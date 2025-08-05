@@ -1,6 +1,5 @@
 package com.example.tradeservice.service;
 
-import com.example.tradeservice.entity.Account;
 import com.example.tradeservice.entity.DataRequest;
 import com.example.tradeservice.entity.HistoricalData;
 import com.example.tradeservice.model.ContractHolder;
@@ -17,7 +16,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.jpa.repository.support.SimpleJpaRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import redis.clients.jedis.exceptions.JedisDataException;
@@ -113,7 +111,7 @@ public class TWSConnectionManager implements EWrapper {
             client.reqOpenOrders();
 
             //request all P&L for current positions
-            client.reqPnLSingle(autoIncrement.getAndIncrement(), this.managedAccount, "", 265598);
+                client.reqPnLSingle(autoIncrement.getAndIncrement(), this.managedAccount, "", 265598);
 
             client.getTwsConnectionTime();
 
@@ -688,6 +686,11 @@ public class TWSConnectionManager implements EWrapper {
     public void pnlSingle(int reqId, Decimal pos, double dailyPnL, double unrealizedPnL,
                           double realizedPnL, double value) {
         log.info(EWrapperMsgGenerator.pnlSingle(reqId, pos, dailyPnL, unrealizedPnL, realizedPnL, value));
+        accountService.setAccount("pos", pos.toString());
+        accountService.setAccount("dailyPnL", String.valueOf(dailyPnL));
+        accountService.setAccount("unrealizedPnL", String.valueOf(unrealizedPnL));
+        accountService.setAccount("realizedPnL", String.valueOf(realizedPnL));
+        accountService.setAccount("value", String.valueOf(value));
     }
 
     @Override
