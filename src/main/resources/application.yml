@@ -4,6 +4,12 @@ spring:
     driver-class-name: org.h2.Driver
     username: sa
     password:
+#Financial websocket
+financial:
+  websocket:
+    url: wss://ws.finnhub.io  # Replace with actual WebSocket URL
+  api:
+    token: ${FINANCIAL_API_TOKEN:your-token-here}
 # Redis config
   data:
     redis:
