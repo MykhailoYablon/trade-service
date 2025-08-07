@@ -2,6 +2,7 @@ package com.example.tradeservice.configuration;
 
 import com.example.tradeservice.model.MarketStatus;
 import com.example.tradeservice.model.Quote;
+import com.example.tradeservice.model.SymbolLookup;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -10,8 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-import static com.example.tradeservice.model.enums.Endpoint.MARKET_STATUS;
-import static com.example.tradeservice.model.enums.Endpoint.QUOTE;
+import static com.example.tradeservice.model.enums.Endpoint.*;
 
 @NoArgsConstructor
 @Getter
@@ -19,18 +19,18 @@ import static com.example.tradeservice.model.enums.Endpoint.QUOTE;
 @Component
 public class FinnhubClient {
 
-
     @Autowired
     private RestClient restClient;
     @Value("${financial.api.token}")
     private String token;
 
-    public Quote quote(String symbol) {
+    public SymbolLookup search(String symbol) {
         return restClient.get()
-                .uri(QUOTE.url() + "?token=" + token
-                        + "&symbol=" + symbol.toUpperCase())
+                .uri(SYMBOL_LOOKUP.url() + "?token=" + token
+                        + "&q=" + symbol.toUpperCase()
+                        + "&exchange=US")
                 .retrieve()
-                .body(Quote.class);
+                .body(SymbolLookup.class);
     }
 
     public MarketStatus marketStatus() {

@@ -31,7 +31,7 @@ public class StockTradeWebSocketHandler extends TextWebSocketHandler {
         log.info("WebSocket connection established: {}", session.getId());
 
         // Subscribe to symbols immediately after connection (as shown in their docs)
-        subscribeToSymbol("AMZN");
+        subscribeToSymbol("GOOG");
         // Add any other symbols you need
     }
 
