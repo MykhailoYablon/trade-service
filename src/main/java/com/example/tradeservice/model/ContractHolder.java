@@ -5,6 +5,8 @@ import com.ib.client.ContractDetails;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.redis.core.RedisHash;
+import org.springframework.data.redis.core.index.Indexed;
 //import org.springframework.data.redis.core.index.Indexed;
 
 import java.io.Serializable;
@@ -14,7 +16,7 @@ import java.util.Set;
 //@Schema(description = "Contract descriptor. It uses the conid of the Contract as a kind-of key.")
 @Data
 @NoArgsConstructor
-//@RedisHash("contract")
+@RedisHash("contract")
 public class ContractHolder implements Serializable {
 
     /**
@@ -36,7 +38,7 @@ public class ContractHolder implements Serializable {
     /**
      * Technical field. Only used for identifying the request id which was used for retrieving the option chain.
      */
-//    @Indexed
+    @Indexed
     private Integer optionChainRequestId;
 
     /**
@@ -53,7 +55,7 @@ public class ContractHolder implements Serializable {
      *
 //     * @see hu.auxin.ibkrfacade.data.TimeSeriesHandler
      */
-//    @Indexed
+    @Indexed
     private Integer streamRequestId;
 
     public ContractHolder(Contract contract) {

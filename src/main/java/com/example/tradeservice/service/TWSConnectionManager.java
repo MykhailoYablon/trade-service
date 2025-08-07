@@ -1,15 +1,16 @@
 package com.example.tradeservice.service;
 
-import com.example.tradeservice.entity.Account;
 import com.example.tradeservice.entity.DataRequest;
 import com.example.tradeservice.entity.HistoricalData;
 import com.example.tradeservice.model.ContractHolder;
 import com.example.tradeservice.model.PositionHolder;
 import com.example.tradeservice.model.enums.TimeFrame;
+import com.example.tradeservice.repository.ContractRepository;
 import com.example.tradeservice.repository.DataRequestRepository;
 import com.example.tradeservice.repository.HistoricalDataRepository;
 import com.example.tradeservice.service.impl.OrderTrackerImpl;
 import com.example.tradeservice.service.impl.PositionTracker;
+import com.example.tradeservice.service.impl.TimeSeriesHandler;
 import com.ib.client.*;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import redis.clients.jedis.exceptions.JedisDataException;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
@@ -43,17 +45,21 @@ public class TWSConnectionManager implements EWrapper {
     private final HistoricalDataRepository historicalDataRepository;
     private final DataRequestRepository dataRequestRepository;
     private final AccountService accountService;
+    private final TimeSeriesHandler timeSeriesHandler;
 
     // Connection parameters
     private static final String HOST = "127.0.0.1";
     private static final int PORT = 7497; // Paper trading port (7496 for live)
     private static final int CLIENT_ID = 0;
+    private final ContractRepository contractRepository;
 
     public TWSConnectionManager(PositionTracker positionTracker,
                                 AccountService accountService,
                                 OrderTrackerImpl orderTracker, HistoricalDataRepository historicalDataRepository,
-                                DataRequestRepository dataRequestRepository) {
+                                ContractRepository contractRepository,
+                                DataRequestRepository dataRequestRepository, TimeSeriesHandler timeSeriesHandler) {
         this.dataRequestRepository = dataRequestRepository;
+        this.timeSeriesHandler = timeSeriesHandler;
         this.client = new EClientSocket(this, readerSignal);
         this.positionTracker = positionTracker;
         this.orderTracker = orderTracker;
@@ -61,55 +67,64 @@ public class TWSConnectionManager implements EWrapper {
         this.connectionLatch = new CountDownLatch(1);
         this.twsResultHandler = new TwsResultHandler();
         this.historicalDataRepository = historicalDataRepository;
-
-//        this.contractRepository = contractRepository;
+        this.contractRepository = contractRepository;
     }
 
     @PostConstruct
     private void connect() throws InterruptedException {
-        client.eConnect(HOST, PORT, CLIENT_ID);
+        try {
+            client.eConnect(HOST, PORT, CLIENT_ID);
 
-        log.info("Client is connected " + client.isConnected());
+            log.info("Client is connected " + client.isConnected());
 
-        final EReader reader = new EReader(client, readerSignal);
-        reader.start();
+            final EReader reader = new EReader(client, readerSignal);
+            reader.start();
 
-        // An additional thread is created in this program design to empty the messaging
-        // queue
-        new Thread(() -> {
-            while (client.isConnected()) {
-                readerSignal.waitForSignal();
-                try {
-                    reader.processMsgs();
-                } catch (Exception e) {
-                    log.error(e.getMessage());
+            // An additional thread is created in this program design to empty the messaging
+            // queue
+            new Thread(() -> {
+                while (client.isConnected()) {
+                    readerSignal.waitForSignal();
+                    try {
+                        reader.processMsgs();
+                    } catch (Exception e) {
+                        log.error(e.getMessage());
+                    }
                 }
-            }
-        }).start();
+            }).start();
 
-        Thread.sleep(2000); // avoid "Ignoring API request 'jextend.cs' since API is not accepted." error
+            Thread.sleep(2000); // avoid "Ignoring API request 'jextend.cs' since API is not accepted." error
 
-        log.info("Connected to TWS successfully!");
+            log.info("Connected to TWS successfully!");
 
-        client.reqPositions(); // subscribe to positions
-        client.reqAutoOpenOrders(true); // subscribe to order changes
-        client.reqAllOpenOrders(); // initial request for open orders
+            client.reqPositions(); // subscribe to positions
+            client.reqAutoOpenOrders(true); // subscribe to order changes
+            client.reqAllOpenOrders(); // initial request for open orders
 
-        // Request account summary
-        client.reqAccountSummary(CLIENT_ID, "All", "TotalCashValue,NetLiquidation,TotalCashBalance,NetDividend,CashBalance");
+            // Request account summary
+            client.reqAccountSummary(CLIENT_ID, "All", "TotalCashValue,NetLiquidation,TotalCashBalance,NetDividend,CashBalance");
 
-        // Request all positions
-        client.reqPositions();
+            // Request all positions
+            client.reqPositions();
 
-        // Request all open orders
-        client.reqOpenOrders();
+            // Request all open orders
+            client.reqOpenOrders();
 
-        //request all P&L for current positions
-        client.reqPnLSingle(autoIncrement.getAndIncrement(), this.managedAccount, "", 265598);
+            //request all P&L for current positions
+                client.reqPnLSingle(autoIncrement.getAndIncrement(), this.managedAccount, "", 265598);
 
-        client.getTwsConnectionTime();
+            client.getTwsConnectionTime();
 
-        orderTracker.setClient(client);
+            orderTracker.setClient(client);
+
+            //test subscribe to market data
+
+
+
+        } catch (Exception e) {
+            log.error("Error connecting to TWS: {}", e.getMessage());
+//            throw new RuntimeException(e);
+        }
     }
 
     public void requestExistingData() {
@@ -265,7 +280,7 @@ public class TWSConnectionManager implements EWrapper {
         TickType tickType = TickType.get(field);
         if (Set.of(TickType.ASK, TickType.BID).contains(tickType)) {
 //          some Redis stuff
-//            timeSeriesHandler.addToStream(tickerId, price, tickType);
+            timeSeriesHandler.addToStream(tickerId, price, tickType);
             log.debug("Tick added to stream {}: {}", tickType, price);
         } else {
             log.debug("Skip tick type {}", tickType);
@@ -671,6 +686,11 @@ public class TWSConnectionManager implements EWrapper {
     public void pnlSingle(int reqId, Decimal pos, double dailyPnL, double unrealizedPnL,
                           double realizedPnL, double value) {
         log.info(EWrapperMsgGenerator.pnlSingle(reqId, pos, dailyPnL, unrealizedPnL, realizedPnL, value));
+        accountService.setAccount("pos", pos.toString());
+        accountService.setAccount("dailyPnL", String.valueOf(dailyPnL));
+        accountService.setAccount("unrealizedPnL", String.valueOf(unrealizedPnL));
+        accountService.setAccount("realizedPnL", String.valueOf(realizedPnL));
+        accountService.setAccount("value", String.valueOf(value));
     }
 
     @Override
@@ -708,8 +728,8 @@ public class TWSConnectionManager implements EWrapper {
     @Override
     public void tickByTickBidAsk(int reqId, long time, double bidPrice, double askPrice,
                                  Decimal bidSize, Decimal askSize, TickAttribBidAsk tickAttribBidAsk) {
-//        timeSeriesHandler.addToStream(reqId, bidPrice, TickType.BID);
-//        timeSeriesHandler.addToStream(reqId, askPrice, TickType.ASK);
+        timeSeriesHandler.addToStream(reqId, bidPrice, TickType.BID);
+        timeSeriesHandler.addToStream(reqId, askPrice, TickType.ASK);
     }
 
     @Override
@@ -766,12 +786,12 @@ public class TWSConnectionManager implements EWrapper {
         final int currentId = autoIncrement.getAndIncrement();
         client.reqContractDetails(currentId, contract);
         TwsResultHolder<ContractDetails> details = twsResultHandler.getResult(currentId);
-//        Optional<ContractHolder> contractHolder = contractRepository.findById(details.getResult().conid());
-//        contractHolder.ifPresent(holder -> {
-//            holder.setDetails(details.getResult());
-//            // TODO save from ContractManager
-//            contractRepository.save(holder);
-//        });
+        Optional<ContractHolder> contractHolder = contractRepository.findById(details.getResult().conid());
+        contractHolder.ifPresent(holder -> {
+            holder.setDetails(details.getResult());
+            // TODO save from ContractManager
+            contractRepository.save(holder);
+        });
         return details;
     }
 
@@ -782,6 +802,30 @@ public class TWSConnectionManager implements EWrapper {
             return twsResultHandler.getResult(currentId);
         }
         return new TwsResultHolder("Search parameter cannot be empty");
+    }
+
+    /**
+     * Subscribe to market data stream, returns with the stream id.
+     * @param contract
+     * @param tickData if true, we get tick-by-tick data
+     */
+    public int subscribeMarketData(Contract contract, boolean tickData) {
+        final int currentId = autoIncrement.getAndIncrement();
+        Optional<ContractHolder> contractHolderOptional = contractRepository.findById(contract.conid());
+        ContractHolder contractHolder = contractHolderOptional.orElse(new ContractHolder(contract));
+        contractHolder.setStreamRequestId(currentId);
+        contractRepository.save(contractHolder);
+        try {
+            timeSeriesHandler.createStream(currentId, contract);
+        } catch (JedisDataException e) {
+            log.error(e.getMessage());
+        }
+        if (tickData) {
+            client.reqTickByTickData(currentId, contract, "BidAsk", 1, false);
+        } else {
+            client.reqMktData(currentId, contract, "", false, false, null);
+        }
+        return currentId;
     }
 
 }
