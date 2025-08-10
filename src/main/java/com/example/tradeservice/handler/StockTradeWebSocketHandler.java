@@ -38,7 +38,7 @@ public class StockTradeWebSocketHandler extends TextWebSocketHandler {
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         String payload = message.getPayload();
-        log.debug("Received message: {}", payload);
+        log.info("Received message: {}", payload);
 
         try {
             // Parse the incoming WebSocket response
@@ -47,11 +47,11 @@ public class StockTradeWebSocketHandler extends TextWebSocketHandler {
             if ("trade".equals(response.getType()) && response.getData() != null) {
                 // Process each trade in the data array
                 for (TradeData trade : response.getData()) {
-                    log.debug("Processing trade: {}", trade);
+                    log.info("Processing trade: {}", trade);
                     tradeDataService.processRealTimeTrade(trade);
                 }
             } else {
-                log.debug("Received non-trade message type: {}", response.getType());
+                log.info("Received non-trade message type: {}", response.getType());
             }
 
         } catch (JsonProcessingException e) {
@@ -76,7 +76,7 @@ public class StockTradeWebSocketHandler extends TextWebSocketHandler {
                 // Exact format from their documentation
                 String subscribeMessage = String.format(
                         "{\"type\":\"subscribe\",\"symbol\":\"%s\"}",
-                        symbol
+                        symbol.toUpperCase()
                 );
                 session.sendMessage(new TextMessage(subscribeMessage));
                 log.info("Subscribed to symbol: {}", symbol);

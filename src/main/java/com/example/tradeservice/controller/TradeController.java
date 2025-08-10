@@ -4,6 +4,7 @@ import com.example.tradeservice.configuration.FinnhubClient;
 import com.example.tradeservice.handler.StockTradeWebSocketHandler;
 import com.example.tradeservice.handler.TradeUpdatedEvent;
 import com.example.tradeservice.model.MarketStatus;
+import com.example.tradeservice.model.Quote;
 import com.example.tradeservice.model.SymbolLookup;
 import com.example.tradeservice.model.TradeData;
 import com.example.tradeservice.service.TradeDataService;
@@ -43,8 +44,8 @@ public class TradeController {
     }
 
     // Latest trade data endpoints
-    @GetMapping("/{symbol}")
-    public ResponseEntity<TradeData> getLatestTrade(@PathVariable String symbol) {
+    @GetMapping
+    public ResponseEntity<TradeData> getLatestTrade(@RequestParam String symbol) {
         return tradeDataService.getLatestTrade(symbol)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -114,6 +115,11 @@ public class TradeController {
     @GetMapping("/status")
     public MarketStatus getMarketStatus() {
         return finnhubClient.marketStatus();
+    }
+
+    @GetMapping("/quote")
+    public Quote quote(@RequestParam String symbol) {
+        return finnhubClient.quote(symbol);
     }
 
     @GetMapping("/search")

@@ -33,6 +33,14 @@ public class FinnhubClient {
                 .body(SymbolLookup.class);
     }
 
+    public Quote quote(String symbol) {
+        return restClient.get()
+                .uri(QUOTE.url() + "?token=" + token
+                        + "&symbol=" + symbol.toUpperCase())
+                .retrieve()
+                .body(Quote.class);
+    }
+
     public MarketStatus marketStatus() {
         return restClient.get()
                 .uri(MARKET_STATUS.url() + "?token=" + token
