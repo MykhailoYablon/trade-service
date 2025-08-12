@@ -1,5 +1,6 @@
 package com.example.tradeservice.handler;
 
+import com.example.tradeservice.configuration.FinnhubClient;
 import com.example.tradeservice.model.TradeData;
 import com.example.tradeservice.model.WebSocketResponse;
 import com.example.tradeservice.service.TradeDataService;
@@ -19,10 +20,13 @@ public class StockTradeWebSocketHandler extends TextWebSocketHandler {
     private final ObjectMapper objectMapper;
     private final TradeDataService tradeDataService;
     private WebSocketSession session;
+    private final FinnhubClient finnhubClient;
 
-    public StockTradeWebSocketHandler(ObjectMapper objectMapper, TradeDataService tradeDataService) {
+    public StockTradeWebSocketHandler(ObjectMapper objectMapper, TradeDataService tradeDataService,
+                                      FinnhubClient finnhubClient) {
         this.objectMapper = objectMapper;
         this.tradeDataService = tradeDataService;
+        this.finnhubClient = finnhubClient;
     }
 
     @Override
@@ -70,7 +74,11 @@ public class StockTradeWebSocketHandler extends TextWebSocketHandler {
         this.session = null;
     }
 
-    public void subscribeToSymbol(String symbol) {
+    public Boolean subscribeToSymbol(String symbol) {
+        if (Boolean.FALSE.equals(finnhubClient.marketStatus().isIsOpen())) {
+            log.info("Market is closed");
+            return false;
+        }
         if (session != null && session.isOpen()) {
             try {
                 // Exact format from their documentation
@@ -80,11 +88,14 @@ public class StockTradeWebSocketHandler extends TextWebSocketHandler {
                 );
                 session.sendMessage(new TextMessage(subscribeMessage));
                 log.info("Subscribed to symbol: {}", symbol);
+                return true;
             } catch (Exception e) {
                 log.error("Error subscribing to symbol: {}", symbol, e);
+                return false;
             }
         } else {
             log.warn("Cannot subscribe to {}: WebSocket session is not open", symbol);
+            return false;
         }
     }
 

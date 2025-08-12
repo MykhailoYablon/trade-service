@@ -33,8 +33,8 @@ public class TradeController {
 
     // WebSocket subscription management
     @PostMapping("/subscribe/{symbol}")
-    public void subscribeToSymbol(@PathVariable String symbol) {
-        webSocketHandler.subscribeToSymbol(symbol);
+    public ResponseEntity<Boolean> subscribeToSymbol(@PathVariable String symbol) {
+        return ResponseEntity.ok(webSocketHandler.subscribeToSymbol(symbol));
     }
 
     @PostMapping("/unsubscribe/{symbol}")
