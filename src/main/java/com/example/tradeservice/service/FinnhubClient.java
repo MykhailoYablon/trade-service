@@ -1,4 +1,4 @@
-package com.example.tradeservice.configuration;
+package com.example.tradeservice.service;
 
 import com.example.tradeservice.model.MarketStatus;
 import com.example.tradeservice.model.Quote;

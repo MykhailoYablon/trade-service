@@ -1,6 +1,6 @@
 package com.example.tradeservice.controller;
 
-import com.example.tradeservice.configuration.FinnhubClient;
+import com.example.tradeservice.service.FinnhubClient;
 import com.example.tradeservice.handler.StockTradeWebSocketHandler;
 import com.example.tradeservice.handler.TradeUpdatedEvent;
 import com.example.tradeservice.model.MarketStatus;
