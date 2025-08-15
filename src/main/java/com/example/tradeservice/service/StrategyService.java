@@ -10,11 +10,10 @@ import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
-@AllArgsConstructor
 @Scope("singleton")
 public class StrategyService {
 
-    private final FinnhubClient finnhubClient;
+    private FinnhubClient finnhubClient;
 
     @Setter
     @NonNull

@@ -114,11 +114,4 @@ public class TradeDataService {
         log.info("Cleared trade data for symbol: {}", symbol);
     }
 
-    @EventListener
-    public void handleTradeUpdate(TradeUpdatedEvent event) {
-        // Handle trade updates (e.g., send to UI, trigger alerts, etc.)
-        TradeData trade = event.getTrade();
-        log.info("Trade updated: {} - ${} (volume: {}, time: {})",
-                trade.getSymbol(), trade.getPrice(), trade.getVolume(), trade.getDateTime());
-    }
 }
