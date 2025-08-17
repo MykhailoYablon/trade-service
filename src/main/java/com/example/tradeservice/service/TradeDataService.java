@@ -4,7 +4,6 @@ import com.example.tradeservice.handler.TradeUpdatedEvent;
 import com.example.tradeservice.model.TradeData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -88,10 +87,11 @@ public class TradeDataService {
         return getLatestTrade(symbol).map(TradeData::getPrice);
     }
 
-    public List<TradeData> getTradeHistory(String symbol, int limit) {
+    //rewrite to fetch last n minutes
+    public List<TradeData> getTradeHistory(String symbol, int minutes) {
         String historyKey = TRADE_HISTORY_KEY_PREFIX + symbol;
         Set<TradeData> trades = redisTemplate.opsForZSet()
-                .reverseRange(historyKey, 0, limit - 1);
+                .reverseRange(historyKey, 0, minutes - 1);
 
         return trades != null ? new ArrayList<>(trades) : new ArrayList<>();
     }
