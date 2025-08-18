@@ -6,6 +6,9 @@ spring:
     password:
 #Financial websocket
 financial:
+  twelve:
+    api:
+      token: ${TWELVE_API_KEY:twelve}
   websocket:
     url: wss://ws.finnhub.io  # Replace with actual WebSocket URL
   api:
