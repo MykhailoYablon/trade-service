@@ -12,7 +12,7 @@ financial:
   websocket:
     url: wss://ws.finnhub.io  # Replace with actual WebSocket URL
   api:
-    token: ${FINANCIAL_API_TOKEN:your-token-here}
+    token: ${FINANCIAL_API_TOKEN:test}
 # Redis config
   data:
     redis:
