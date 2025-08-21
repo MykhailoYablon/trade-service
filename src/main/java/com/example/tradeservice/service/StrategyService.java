@@ -18,6 +18,12 @@ import org.springframework.data.util.Pair;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -51,17 +57,37 @@ public class StrategyService {
     @EventListener
     public void handleOrderCompletedEvent(TradeUpdatedEvent event) {
         TradeData trade = event.getTrade();
+        String symbol = trade.getSymbol();
+        Double price = trade.getPrice();
         log.info("Trade updated: {} - ${} (volume: {}, time: {})",
-                trade.getSymbol(), trade.getPrice(), trade.getVolume(), trade.getDateTime());
+                symbol, price, trade.getVolume(), trade.getDateTime());
 
-        Pair<Double, Double> lowHigh = openingRangeLowHigh.get(trade.getSymbol());
+        Pair<Double, Double> lowHigh = openingRangeLowHigh.get(symbol);
         var low = lowHigh.getFirst();
         var high = lowHigh.getSecond();
 
+        // 4. Log breakout / create Order
+
+        if (price > high) {
+            log.info("BREAKOUT {} with price - {} and high - {}", symbol, price, high);
+
+            String logFileName = createLogFileName();
+
+            // Write some sample lines to the log file
+            writeToLog(logFileName, String.format("BREAKOUT %s with price - %s and high - %s\"", symbol, price, high));
+
+            //buy handler not implemented
+            // add risk sell logic
+
+            // 5. Unsubscribe from symbol if break happened
+            handler.unsubscribeFromSymbol(symbol);
+        } else {
+            log.info("Price {} is lower than opening high {}", price, high);
+        }
 
     }
 
-    //    @Scheduled("")
+    //    @Scheduled("16:30 in our time")
     @PostConstruct
     public void openingRangeBreakStrategy() {
 
@@ -84,13 +110,31 @@ public class StrategyService {
         // 3. Fetch async data in real time and set breakout function if new last_bar.close > opening_range_high
         handler.subscribeToSymbol(symbol);
 
+    }
 
-        // 4. Log breakout / create Order
+    /**
+     * Creates a log file name with current date
+     * Format: OpeningBreakRange-YYYY-MM-DD.log
+     */
+    private static String createLogFileName() {
+        LocalDate currentDate = LocalDate.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        String dateString = currentDate.format(formatter);
+        return "OpeningBreakRange-" + dateString + ".log";
+    }
 
-        // 5. Unsubscribe from symbol if break happened
-        boolean isBreak = false;
-        if (isBreak) {
-            handler.unsubscribeFromSymbol(symbol);
+    /**
+     * Writes a line to the log file
+     * @param fileName The log file name
+     * @param message The message to write
+     */
+    public static void writeToLog(String fileName, String message) {
+        try (FileWriter writer = new FileWriter(fileName, true)) {
+            // Add timestamp to each log entry
+            String timestamp = LocalDateTime.now().toString();
+            writer.write("[" + timestamp + "] " + message + "\n");
+        } catch (IOException e) {
+            System.err.println("Error writing to log file: " + e.getMessage());
         }
     }
 }
