@@ -1,6 +1,7 @@
 package com.example.tradeservice.configuration;
 
 import com.example.tradeservice.model.StockResponse;
+import com.example.tradeservice.model.TwelveQuote;
 import com.example.tradeservice.model.enums.TimeFrame;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import static com.example.tradeservice.model.enums.Endpoint.TIME_SERIES;
+import static com.example.tradeservice.model.enums.Endpoint.TWELVE_QUOTE;
 
 @NoArgsConstructor
 @Getter
@@ -30,10 +32,20 @@ public class TwelveDataClient {
         return restClient.get()
                 .uri(TIME_SERIES.url() + "?apikey=" + token
                         + "&symbol=" + symbol.toUpperCase()
-                        + "&interval=" + timeFrame.getIbFormat()
+                        + "&interval=" + timeFrame.getTwelveFormat()
                 )
                 .retrieve()
                 .body(StockResponse.class);
+    }
+
+    public TwelveQuote quoteWithInterval(String symbol, TimeFrame timeFrame) {
+        return restClient.get()
+                .uri(TWELVE_QUOTE.url() + "?apikey=" + token
+                        + "&symbol=" + symbol.toUpperCase()
+                        + "&interval=" + timeFrame.getTwelveFormat()
+                )
+                .retrieve()
+                .body(TwelveQuote.class);
     }
 
 }
