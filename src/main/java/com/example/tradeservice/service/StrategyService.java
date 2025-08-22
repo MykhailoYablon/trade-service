@@ -8,7 +8,6 @@ import com.example.tradeservice.model.TradeData;
 import com.example.tradeservice.model.TwelveQuote;
 import com.example.tradeservice.model.enums.TimeFrame;
 import com.ib.client.EClientSocket;
-import jakarta.annotation.PostConstruct;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
@@ -25,6 +24,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -96,23 +96,25 @@ public class StrategyService {
     }
 
     /**
-     * Scheduled method that runs every day at 16:30 GMT+2
-     * Cron expression: "0 30 16 * * ?"
+     * Scheduled method that runs every day at 16:35 GMT+3
+     * Cron expression: "0 35 16 * * ?"
      * - 0: seconds (0)
-     * - 30: minutes (30)
-     * - 16: hours (16 = 4:30 PM)
+     * - 35: minutes (35)
+     * - 16: hours (16 = 4:35 PM)
      * - *: day of month (every day)
      * - *: month (every month)
      * - ?: day of week (any day)
      */
-    @Scheduled(cron = "0 30 16 * * MON-FRI", zone = "GMT+3")
-//    @PostConstruct
-    public void openingRangeBreakStrategy() throws InterruptedException {
+    @Scheduled(cron = "0 35 16 * * MON-FRI", zone = "GMT+3")
+    public void batch() {
+        //batch not working due to free account limitation
+        List<String> symbolList = List.of("GOOG");
+        symbolList.forEach(this::openingRangeBreakStrategy);
+    }
 
-        String symbol = "GOOG";
-
+    public void openingRangeBreakStrategy(String symbol) {
         // 1. Fetch data for opening 15 min range asynchronously for several symbols
-        //get last 15 min candle
+        //get last 5 min candle
         int attemptCount = 0;
 
         TwelveQuote quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
@@ -138,13 +140,19 @@ public class StrategyService {
 
                 // 3. Fetch async data in real time and set breakout function if new last_bar.close > opening_range_high
                 handler.subscribeToSymbol(symbol);
+
+                break;
             } else {
                 log.warn("Date mismatch. Response date: {}, Current date: {}",
                         responseDate, currentDate);
 
                 if (attemptCount < MAX_RETRY_ATTEMPTS) {
                     log.info("Retrying in {} seconds...", RETRY_DELAY_SECONDS);
-                    Thread.sleep(TimeUnit.SECONDS.toMillis(RETRY_DELAY_SECONDS));
+                    try {
+                        Thread.sleep(TimeUnit.SECONDS.toMillis(RETRY_DELAY_SECONDS));
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
 
                     // Make API call again to get fresh response
                     quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
