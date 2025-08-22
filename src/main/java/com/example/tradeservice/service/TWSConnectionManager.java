@@ -38,6 +38,7 @@ public class TWSConnectionManager implements EWrapper {
     private EReader reader;
     private PositionTracker positionTracker;
     private OrderTrackerImpl orderTracker;
+    private StrategyService strategyService;
     private CountDownLatch connectionLatch;
     private final TwsResultHandler twsResultHandler;
     private final AtomicInteger autoIncrement = new AtomicInteger();
@@ -55,7 +56,9 @@ public class TWSConnectionManager implements EWrapper {
 
     public TWSConnectionManager(PositionTracker positionTracker,
                                 AccountService accountService,
-                                OrderTrackerImpl orderTracker, HistoricalDataRepository historicalDataRepository,
+                                OrderTrackerImpl orderTracker,
+                                StrategyService strategyService,
+                                HistoricalDataRepository historicalDataRepository,
                                 ContractRepository contractRepository,
                                 DataRequestRepository dataRequestRepository, TimeSeriesHandler timeSeriesHandler) {
         this.dataRequestRepository = dataRequestRepository;
@@ -63,6 +66,7 @@ public class TWSConnectionManager implements EWrapper {
         this.client = new EClientSocket(this, readerSignal);
         this.positionTracker = positionTracker;
         this.orderTracker = orderTracker;
+        this.strategyService = strategyService;
         this.accountService = accountService;
         this.connectionLatch = new CountDownLatch(1);
         this.twsResultHandler = new TwsResultHandler();
@@ -116,6 +120,8 @@ public class TWSConnectionManager implements EWrapper {
             client.getTwsConnectionTime();
 
             orderTracker.setClient(client);
+
+            strategyService.setClient(client);
 
             //test subscribe to market data
 

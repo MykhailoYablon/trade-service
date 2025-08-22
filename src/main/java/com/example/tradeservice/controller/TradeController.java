@@ -1,12 +1,11 @@
 package com.example.tradeservice.controller;
 
 import com.example.tradeservice.configuration.FinnhubClient;
+import com.example.tradeservice.model.enums.TimeFrame;
+import com.example.tradeservice.configuration.TwelveDataClient;
 import com.example.tradeservice.handler.StockTradeWebSocketHandler;
 import com.example.tradeservice.handler.TradeUpdatedEvent;
-import com.example.tradeservice.model.MarketStatus;
-import com.example.tradeservice.model.Quote;
-import com.example.tradeservice.model.SymbolLookup;
-import com.example.tradeservice.model.TradeData;
+import com.example.tradeservice.model.*;
 import com.example.tradeservice.service.TradeDataService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +29,7 @@ public class TradeController {
     private final TradeDataService tradeDataService;
     private final StockTradeWebSocketHandler webSocketHandler;
     private final FinnhubClient finnhubClient;
+    private final TwelveDataClient twelveDataClient;
 
     // WebSocket subscription management
     @PostMapping("/subscribe/{symbol}")
@@ -125,5 +125,10 @@ public class TradeController {
     @GetMapping("/search")
     public SymbolLookup searchSymbol(@RequestParam String symbol) {
         return finnhubClient.search(symbol);
+    }
+
+    @GetMapping("/time-series")
+    public StockResponse getTimeSeries(@RequestParam String symbol) {
+        return twelveDataClient.timeSeries(symbol, TimeFrame.FIFTEEN_MIN);
     }
 }

@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Bean;
@@ -29,12 +29,14 @@ import java.time.Duration;
 public class RedisConfiguration {
 
     @Bean
-    ObjectMapper objectMapper() {
-        JsonMapper mapper = new JsonMapper();
-        mapper.setSerializationInclusion(JsonInclude.Include.ALWAYS)
+    @Primary
+    public ObjectMapper objectMapper() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.setSerializationInclusion(JsonInclude.Include.ALWAYS)
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
-        return mapper;
+        objectMapper.registerModule(new JavaTimeModule());
+        return objectMapper;
     }
 
     @Bean
@@ -55,11 +57,11 @@ public class RedisConfiguration {
     }
 
     @Bean
-    public RedisTemplate<String, TradeData> redisTemplate(RedisConnectionFactory connectionFactory) {
+    public RedisTemplate<String, TradeData> redisTemplate(RedisConnectionFactory connectionFactory, ObjectMapper mapper) {
         RedisTemplate<String, TradeData> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        Jackson2JsonRedisSerializer<TradeData> serializer = new Jackson2JsonRedisSerializer<>(TradeData.class);
+        Jackson2JsonRedisSerializer<TradeData> serializer = new Jackson2JsonRedisSerializer<>(mapper, TradeData.class);
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(serializer);
         template.setHashKeySerializer(new StringRedisSerializer());

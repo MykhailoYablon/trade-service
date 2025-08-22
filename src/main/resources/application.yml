@@ -6,10 +6,19 @@ spring:
     password:
 #Financial websocket
 financial:
+  twelve:
+    api:
+      token: ${TWELVE_API_KEY:twelve}
   websocket:
     url: wss://ws.finnhub.io  # Replace with actual WebSocket URL
   api:
-    token: ${FINANCIAL_API_TOKEN:your-token-here}
+    token: ${FINANCIAL_API_TOKEN:test}
+
+# Strategy config
+strategy:
+  risk: 1
+  reward:
+
 # Redis config
   data:
     redis:
@@ -31,3 +40,4 @@ server:
 
 redis:
   default-retention: 3600000
+

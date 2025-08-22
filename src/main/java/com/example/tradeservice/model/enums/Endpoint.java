@@ -13,7 +13,12 @@ public enum Endpoint {
     SYMBOL("https://finnhub.io/api/v1/stock/symbol"),
     SYMBOL_LOOKUP("https://finnhub.io/api/v1/search"),
     QUOTE("https://finnhub.io/api/v1/quote"),
-    INSIDER_TRANSACTIONS("https://finnhub.io/api/v1/stock/insider-transactions");
+    INSIDER_TRANSACTIONS("https://finnhub.io/api/v1/stock/insider-transactions"),
+
+    //TWELVE DATA URLS
+
+    TIME_SERIES("https://api.twelvedata.com/time_series"),
+    TWELVE_QUOTE("https://api.twelvedata.com/quote");
 
 
     private String url;
