@@ -13,6 +13,12 @@ financial:
     url: wss://ws.finnhub.io  # Replace with actual WebSocket URL
   api:
     token: ${FINANCIAL_API_TOKEN:test}
+
+# Strategy config
+strategy:
+  risk: 1
+  reward:
+
 # Redis config
   data:
     redis:
@@ -34,3 +40,4 @@ server:
 
 redis:
   default-retention: 3600000
+

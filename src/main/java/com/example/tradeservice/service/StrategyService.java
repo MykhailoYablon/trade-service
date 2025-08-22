@@ -16,9 +16,9 @@ import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.util.Pair;
 import org.springframework.lang.NonNull;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDate;
@@ -26,6 +26,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -39,6 +40,8 @@ public class StrategyService {
     private final RedisTemplate<String, TradeData> redisTemplate;
 
     private Map<String, Pair<Double, Double>> openingRangeLowHigh = new HashMap<>();
+    private static final int MAX_RETRY_ATTEMPTS = 5;
+    private static final long RETRY_DELAY_SECONDS = 15;
 
     @Setter
     @NonNull
@@ -79,6 +82,11 @@ public class StrategyService {
             //buy handler not implemented
             // add risk sell logic
 
+
+            if (price <= low) {
+                //sell logic
+            }
+
             // 5. Unsubscribe from symbol if break happened
             handler.unsubscribeFromSymbol(symbol);
         } else {
@@ -87,29 +95,62 @@ public class StrategyService {
 
     }
 
-    //    @Scheduled("16:30 in our time")
-    @PostConstruct
-    public void openingRangeBreakStrategy() {
+    /**
+     * Scheduled method that runs every day at 16:30 GMT+2
+     * Cron expression: "0 30 16 * * ?"
+     * - 0: seconds (0)
+     * - 30: minutes (30)
+     * - 16: hours (16 = 4:30 PM)
+     * - *: day of month (every day)
+     * - *: month (every month)
+     * - ?: day of week (any day)
+     */
+    @Scheduled(cron = "0 30 16 * * MON-FRI", zone = "GMT+3")
+//    @PostConstruct
+    public void openingRangeBreakStrategy() throws InterruptedException {
 
         String symbol = "GOOG";
 
         // 1. Fetch data for opening 15 min range asynchronously for several symbols
         //get last 15 min candle
-        TwelveQuote quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.FIFTEEN_MIN);
+        int attemptCount = 0;
 
-        log.info("Quote - {}", quote);
+        TwelveQuote quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
 
-        // 2. Get opening 15 min range lows and highs for each symbol
-        var high = Double.valueOf(quote.getHigh());
-        var low = Double.valueOf(quote.getLow());
+        while (attemptCount < MAX_RETRY_ATTEMPTS) {
+            attemptCount++;
+            DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-        openingRangeLowHigh.put(symbol, Pair.of(low, high));
+            LocalDateTime dateTime = LocalDateTime.parse(quote.getDatetime(), dateTimeFormatter);
+            LocalDate responseDate = dateTime.toLocalDate();
+            LocalDate currentDate = LocalDate.now();
 
-        log.info("High - {}, Low - {}", high, low);
+            if (responseDate.equals(currentDate)) {
+                log.info("Date validation successful! Dates match.");
+                log.info("Quote - {}", quote);
+                // 2. Get opening 15 min range lows and highs for each symbol
+                var high = Double.valueOf(quote.getHigh());
+                var low = Double.valueOf(quote.getLow());
 
-        // 3. Fetch async data in real time and set breakout function if new last_bar.close > opening_range_high
-        handler.subscribeToSymbol(symbol);
+                openingRangeLowHigh.put(symbol, Pair.of(low, high));
 
+                log.info("High - {}, Low - {}", high, low);
+
+                // 3. Fetch async data in real time and set breakout function if new last_bar.close > opening_range_high
+                handler.subscribeToSymbol(symbol);
+            } else {
+                log.warn("Date mismatch. Response date: {}, Current date: {}",
+                        responseDate, currentDate);
+
+                if (attemptCount < MAX_RETRY_ATTEMPTS) {
+                    log.info("Retrying in {} seconds...", RETRY_DELAY_SECONDS);
+                    Thread.sleep(TimeUnit.SECONDS.toMillis(RETRY_DELAY_SECONDS));
+
+                    // Make API call again to get fresh response
+                    quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
+                }
+            }
+        }
     }
 
     /**
@@ -125,8 +166,9 @@ public class StrategyService {
 
     /**
      * Writes a line to the log file
+     *
      * @param fileName The log file name
-     * @param message The message to write
+     * @param message  The message to write
      */
     public static void writeToLog(String fileName, String message) {
         try (FileWriter writer = new FileWriter(fileName, true)) {
