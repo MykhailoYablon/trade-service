@@ -18,12 +18,10 @@ import java.time.LocalDateTime;
 @Table(name = "historical_data",
         indexes = {
                 @Index(name = "idx_position_timeframe_timestamp",
-                        columnList = "position_id, timeframe, timestamp"),
-                @Index(name = "idx_timestamp_timeframe",
-                        columnList = "timestamp, timeframe")
+                        columnList = "position_id, timeframe")
         })
 @Entity
-//@RedisHash("h")
+@RedisHash("historical_data")
 public class HistoricalData {
 
     @Id

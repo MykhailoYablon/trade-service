@@ -26,6 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -65,9 +66,15 @@ public class StrategyService {
         log.info("Trade updated: {} - ${} (volume: {}, time: {})",
                 symbol, price, trade.getVolume(), trade.getDateTime());
 
-        Pair<Double, Double> lowHigh = openingRangeLowHigh.get(symbol);
-        var low = lowHigh.getFirst();
-        var high = lowHigh.getSecond();
+        Pair<Double, Double> lowHighPair = openingRangeLowHigh.get(symbol);
+        Optional.ofNullable(lowHighPair)
+                .ifPresent(pair -> proceedOpeningRangeBreak(symbol, pair, price));
+
+    }
+
+    private void proceedOpeningRangeBreak(String symbol, Pair<Double, Double> lowHighPair, Double price) {
+        var low = lowHighPair.getFirst();
+        var high = lowHighPair.getSecond();
 
         // 4. Log breakout / create Order
 
@@ -79,20 +86,17 @@ public class StrategyService {
             // Write some sample lines to the log file
             writeToLog(logFileName, String.format("BREAKOUT %s with price - %s and high - %s\"", symbol, price, high));
 
+            ///ADD RETESTING STRATEGY
+
             //buy handler not implemented
             // add risk sell logic
 
-
-            if (price <= low) {
-                //sell logic
-            }
 
             // 5. Unsubscribe from symbol if break happened
             handler.unsubscribeFromSymbol(symbol);
         } else {
             log.info("Price {} is lower than opening high {}", price, high);
         }
-
     }
 
     /**
