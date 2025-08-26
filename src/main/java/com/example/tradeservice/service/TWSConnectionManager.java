@@ -11,6 +11,7 @@ import com.example.tradeservice.redis.HistoricalDataRepository;
 import com.example.tradeservice.service.impl.OrderTrackerImpl;
 import com.example.tradeservice.service.impl.PositionTracker;
 import com.example.tradeservice.service.impl.TimeSeriesHandler;
+import com.example.tradeservice.strategy.StrategyService;
 import com.ib.client.*;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;

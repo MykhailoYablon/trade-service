@@ -6,7 +6,7 @@ import lombok.Setter;
 
 @Setter
 @Data
-public class TwelveQuote {
+public class TwelveCandleBar {
     @JsonProperty("symbol")
     String symbol;
     @JsonProperty("name")

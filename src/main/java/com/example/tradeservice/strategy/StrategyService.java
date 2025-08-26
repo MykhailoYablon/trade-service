@@ -1,12 +1,13 @@
-package com.example.tradeservice.service;
+package com.example.tradeservice.strategy;
 
 import com.example.tradeservice.configuration.FinnhubClient;
 import com.example.tradeservice.configuration.TwelveDataClient;
 import com.example.tradeservice.handler.StockTradeWebSocketHandler;
 import com.example.tradeservice.handler.TradeUpdatedEvent;
 import com.example.tradeservice.model.TradeData;
-import com.example.tradeservice.model.TwelveQuote;
+import com.example.tradeservice.model.TwelveCandleBar;
 import com.example.tradeservice.model.enums.TimeFrame;
+import com.example.tradeservice.service.TradeDataService;
 import com.ib.client.EClientSocket;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +41,8 @@ public class StrategyService {
     private final TradeDataService tradeDataService;
     private final RedisTemplate<String, TradeData> redisTemplate;
 
-    private Map<String, Pair<Double, Double>> openingRangeLowHigh = new HashMap<>();
+    private final Map<String, Pair<Double, Double>> openingRangeLowHigh = new HashMap<>();
+    private final Map<String, Boolean> breakRetest = new HashMap<>();
     private static final int MAX_RETRY_ATTEMPTS = 5;
     private static final long RETRY_DELAY_SECONDS = 15;
 
@@ -81,16 +83,10 @@ public class StrategyService {
         if (price > high) {
             log.info("BREAKOUT {} with price - {} and high - {}", symbol, price, high);
 
-            String logFileName = createLogFileName();
+            String logFileName = createLogFileName("OpeningBreakRange-");
 
             // Write some sample lines to the log file
             writeToLog(logFileName, String.format("BREAKOUT %s with price - %s and high - %s\"", symbol, price, high));
-
-            ///ADD RETESTING STRATEGY
-
-            //buy handler not implemented
-            // add risk sell logic
-
 
             // 5. Unsubscribe from symbol if break happened
             handler.unsubscribeFromSymbol(symbol);
@@ -121,7 +117,7 @@ public class StrategyService {
         //get last 5 min candle
         int attemptCount = 0;
 
-        TwelveQuote quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
+        TwelveCandleBar quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
 
         while (attemptCount < MAX_RETRY_ATTEMPTS) {
             attemptCount++;
@@ -142,8 +138,12 @@ public class StrategyService {
 
                 log.info("High - {}, Low - {}", high, low);
 
+                //Use subscribe to fetch ONE minute candles for specific symbols
+                this.subscribeQuote(symbol, high);
+
                 // 3. Fetch async data in real time and set breakout function if new last_bar.close > opening_range_high
-                handler.subscribeToSymbol(symbol);
+                // Second approach to subscribe
+//                handler.subscribeToSymbol(symbol);
 
                 break;
             } else {
@@ -165,15 +165,50 @@ public class StrategyService {
         }
     }
 
+    public void subscribeQuote(String symbol, Double high) {
+        boolean isBreak = false;
+        boolean isRetest = false;
+
+        while (true) {
+            TwelveCandleBar quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN);
+            double closePrice = Double.parseDouble(quote.getClose());
+            if (!isBreak) {
+                if (closePrice > high) {
+                    // Break happened
+                    // Write some sample lines to the log file
+                    String logFileName = createLogFileName("OpeningBreakRange-");
+                    writeToLog(logFileName, String.format("BREAKOUT %s with close price - %s and high - %s\"",
+                            symbol, closePrice, high));
+                    isBreak = true;
+                }
+            } else {
+                //RETEST BREAK
+                if (closePrice <= high) {
+                    log.info("Retest price happened");
+                    String logFileName = createLogFileName("RetestBreakRange-");
+                    writeToLog(logFileName, String.format("RETEST BREAKOUT %s with close price - %s and high - %s\"",
+                            symbol, closePrice, high));
+                    isRetest = true;
+
+                    //BUY AND RISK - REWARD GOES HERE
+                }
+            }
+
+            if (isBreak && isRetest) {
+                break;
+            }
+        }
+    }
+
     /**
      * Creates a log file name with current date
      * Format: OpeningBreakRange-YYYY-MM-DD.log
      */
-    private static String createLogFileName() {
+    private static String createLogFileName(String prefix) {
         LocalDate currentDate = LocalDate.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         String dateString = currentDate.format(formatter);
-        return "OpeningBreakRange-" + dateString + ".log";
+        return prefix + dateString + ".log";
     }
 
     /**
