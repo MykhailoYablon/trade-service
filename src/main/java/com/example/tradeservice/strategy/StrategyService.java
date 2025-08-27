@@ -108,7 +108,7 @@ public class StrategyService {
     @Scheduled(cron = "0 35 16 * * MON-FRI", zone = "GMT+3")
     public void batch() {
         //batch not working due to free account limitation
-        List<String> symbolList = List.of("GOOG");
+        List<String> symbolList = List.of("MSFT");
         symbolList.forEach(this::openingRangeBreakStrategy);
     }
 
@@ -204,7 +204,7 @@ public class StrategyService {
      * Creates a log file name with current date
      * Format: OpeningBreakRange-YYYY-MM-DD.log
      */
-    private static String createLogFileName(String prefix) {
+    public static String createLogFileName(String prefix) {
         LocalDate currentDate = LocalDate.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         String dateString = currentDate.format(formatter);

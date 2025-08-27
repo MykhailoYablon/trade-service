@@ -6,6 +6,7 @@ import com.example.tradeservice.model.enums.TimeFrame;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -18,6 +19,7 @@ import static com.example.tradeservice.model.enums.Endpoint.TWELVE_QUOTE;
 @Getter
 @Setter
 @Component
+@Slf4j
 public class TwelveDataClient {
 
     @Autowired
@@ -36,6 +38,7 @@ public class TwelveDataClient {
     }
 
     public TwelveCandleBar quoteWithInterval(String symbol, TimeFrame timeFrame) {
+        log.info("Fetching candle for symbol - {} with timeframe - {}", symbol, timeFrame);
         return restClient.get()
                 .uri(TWELVE_QUOTE.url() + "?apikey=" + token
                         + "&symbol=" + symbol.toUpperCase()

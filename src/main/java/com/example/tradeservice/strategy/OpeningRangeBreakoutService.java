@@ -17,6 +17,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.example.tradeservice.strategy.StrategyService.createLogFileName;
+import static com.example.tradeservice.strategy.StrategyService.writeToLog;
+
 @Slf4j
 @Service
 public class OpeningRangeBreakoutService {
@@ -48,7 +51,7 @@ public class OpeningRangeBreakoutService {
     private TwelveDataClient twelveDataClient;
 
     // Scheduled tasks
-    @Scheduled(cron = "0 30-44/5 9 * * MON-FRI") // Every 5 minutes from 9:30-9:44
+    @Scheduled(cron = "0 31-45/5 16 * * MON-FRI", zone = "GMT+3") // Every 5 minutes from 9:30-9:44
     public void collectOpeningRangeData() {
         if (currentState != TradingState.COLLECTING_OPENING_RANGE) {
             initializeForNewTradingDay();
@@ -182,6 +185,12 @@ public class OpeningRangeBreakoutService {
         currentState = TradingState.MONITORING_FOR_RETEST;
         retestStartTime = LocalDateTime.now();
 
+        String logFileName = createLogFileName("OpeningBreakRange-");
+
+        // Write some sample lines to the log file
+        writeToLog(logFileName, String.format("BREAKOUT %s with price - %s and high - %s", breakoutBar.getSymbol(),
+                breakoutBar.getClose(), openingRange.high()));
+
         log.info("BREAKOUT CONFIRMED! Price: {}, Time: {}, Opening High: {}",
                 breakoutData.breakoutPrice(), breakoutData.breakoutTime(), openingRange.high());
     }
@@ -215,6 +224,7 @@ public class OpeningRangeBreakoutService {
 
         log.info("ENTRY SETUP - Suggested Entry: {}, Stop Loss: {}, Risk per share: {}",
                 suggestedEntry, suggestedStop, riskAmount);
+
 
         // TODO: Implement your buy logic and risk management here
         // calculatePositionSize(riskAmount);
