@@ -4,6 +4,7 @@ import com.example.tradeservice.mapper.ContractMapper;
 import com.example.tradeservice.model.ContractHolder;
 import com.example.tradeservice.model.ContractModel;
 import com.example.tradeservice.repository.ContractRepository;
+import com.example.tradeservice.redis.ContractRepository;
 import com.example.tradeservice.repository.PositionRepository;
 import com.example.tradeservice.service.TwsResultHolder;
 import com.example.tradeservice.service.impl.ContractManagerServiceImpl;

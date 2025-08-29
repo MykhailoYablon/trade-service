@@ -1,14 +1,14 @@
-package com.example.tradeservice.service;
+package com.example.tradeservice.strategy;
 
 import com.example.tradeservice.configuration.FinnhubClient;
 import com.example.tradeservice.configuration.TwelveDataClient;
 import com.example.tradeservice.handler.StockTradeWebSocketHandler;
 import com.example.tradeservice.handler.TradeUpdatedEvent;
 import com.example.tradeservice.model.TradeData;
-import com.example.tradeservice.model.TwelveQuote;
+import com.example.tradeservice.model.TwelveCandleBar;
 import com.example.tradeservice.model.enums.TimeFrame;
+import com.example.tradeservice.service.TradeDataService;
 import com.ib.client.EClientSocket;
-import jakarta.annotation.PostConstruct;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
@@ -25,7 +25,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -39,7 +41,8 @@ public class StrategyService {
     private final TradeDataService tradeDataService;
     private final RedisTemplate<String, TradeData> redisTemplate;
 
-    private Map<String, Pair<Double, Double>> openingRangeLowHigh = new HashMap<>();
+    private final Map<String, Pair<Double, Double>> openingRangeLowHigh = new HashMap<>();
+    private final Map<String, Boolean> breakRetest = new HashMap<>();
     private static final int MAX_RETRY_ATTEMPTS = 5;
     private static final long RETRY_DELAY_SECONDS = 15;
 
@@ -65,57 +68,56 @@ public class StrategyService {
         log.info("Trade updated: {} - ${} (volume: {}, time: {})",
                 symbol, price, trade.getVolume(), trade.getDateTime());
 
-        Pair<Double, Double> lowHigh = openingRangeLowHigh.get(symbol);
-        var low = lowHigh.getFirst();
-        var high = lowHigh.getSecond();
+        Pair<Double, Double> lowHighPair = openingRangeLowHigh.get(symbol);
+        Optional.ofNullable(lowHighPair)
+                .ifPresent(pair -> proceedOpeningRangeBreak(symbol, pair, price));
+
+    }
+
+    private void proceedOpeningRangeBreak(String symbol, Pair<Double, Double> lowHighPair, Double price) {
+        var low = lowHighPair.getFirst();
+        var high = lowHighPair.getSecond();
 
         // 4. Log breakout / create Order
 
         if (price > high) {
             log.info("BREAKOUT {} with price - {} and high - {}", symbol, price, high);
 
-            String logFileName = createLogFileName();
+            String logFileName = createLogFileName("OpeningBreakRange-");
 
             // Write some sample lines to the log file
             writeToLog(logFileName, String.format("BREAKOUT %s with price - %s and high - %s\"", symbol, price, high));
-
-            //buy handler not implemented
-            // add risk sell logic
-
-
-            if (price <= low) {
-                //sell logic
-            }
 
             // 5. Unsubscribe from symbol if break happened
             handler.unsubscribeFromSymbol(symbol);
         } else {
             log.info("Price {} is lower than opening high {}", price, high);
         }
-
     }
 
     /**
-     * Scheduled method that runs every day at 16:30 GMT+2
-     * Cron expression: "0 30 16 * * ?"
+     * Scheduled method that runs every day at 16:35 GMT+3
+     * Cron expression: "0 35 16 * * ?"
      * - 0: seconds (0)
-     * - 30: minutes (30)
-     * - 16: hours (16 = 4:30 PM)
+     * - 35: minutes (35)
+     * - 16: hours (16 = 4:35 PM)
      * - *: day of month (every day)
      * - *: month (every month)
      * - ?: day of week (any day)
      */
-    @Scheduled(cron = "0 30 16 * * MON-FRI", zone = "GMT+3")
-//    @PostConstruct
-    public void openingRangeBreakStrategy() throws InterruptedException {
+    @Scheduled(cron = "0 35 16 * * MON-FRI", zone = "GMT+3")
+    public void batch() {
+        //batch not working due to free account limitation
+        List<String> symbolList = List.of("MSFT");
+        symbolList.forEach(this::openingRangeBreakStrategy);
+    }
 
-        String symbol = "GOOG";
-
+    public void openingRangeBreakStrategy(String symbol) {
         // 1. Fetch data for opening 15 min range asynchronously for several symbols
-        //get last 15 min candle
+        //get last 5 min candle
         int attemptCount = 0;
 
-        TwelveQuote quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
+        TwelveCandleBar quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
 
         while (attemptCount < MAX_RETRY_ATTEMPTS) {
             attemptCount++;
@@ -136,15 +138,25 @@ public class StrategyService {
 
                 log.info("High - {}, Low - {}", high, low);
 
+                //Use subscribe to fetch ONE minute candles for specific symbols
+                this.subscribeQuote(symbol, high);
+
                 // 3. Fetch async data in real time and set breakout function if new last_bar.close > opening_range_high
-                handler.subscribeToSymbol(symbol);
+                // Second approach to subscribe
+//                handler.subscribeToSymbol(symbol);
+
+                break;
             } else {
                 log.warn("Date mismatch. Response date: {}, Current date: {}",
                         responseDate, currentDate);
 
                 if (attemptCount < MAX_RETRY_ATTEMPTS) {
                     log.info("Retrying in {} seconds...", RETRY_DELAY_SECONDS);
-                    Thread.sleep(TimeUnit.SECONDS.toMillis(RETRY_DELAY_SECONDS));
+                    try {
+                        Thread.sleep(TimeUnit.SECONDS.toMillis(RETRY_DELAY_SECONDS));
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
 
                     // Make API call again to get fresh response
                     quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
@@ -153,15 +165,50 @@ public class StrategyService {
         }
     }
 
+    public void subscribeQuote(String symbol, Double high) {
+        boolean isBreak = false;
+        boolean isRetest = false;
+
+        while (true) {
+            TwelveCandleBar quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN);
+            double closePrice = Double.parseDouble(quote.getClose());
+            if (!isBreak) {
+                if (closePrice > high) {
+                    // Break happened
+                    // Write some sample lines to the log file
+                    String logFileName = createLogFileName("OpeningBreakRange-");
+                    writeToLog(logFileName, String.format("BREAKOUT %s with close price - %s and high - %s\"",
+                            symbol, closePrice, high));
+                    isBreak = true;
+                }
+            } else {
+                //RETEST BREAK
+                if (closePrice <= high) {
+                    log.info("Retest price happened");
+                    String logFileName = createLogFileName("RetestBreakRange-");
+                    writeToLog(logFileName, String.format("RETEST BREAKOUT %s with close price - %s and high - %s\"",
+                            symbol, closePrice, high));
+                    isRetest = true;
+
+                    //BUY AND RISK - REWARD GOES HERE
+                }
+            }
+
+            if (isBreak && isRetest) {
+                break;
+            }
+        }
+    }
+
     /**
      * Creates a log file name with current date
      * Format: OpeningBreakRange-YYYY-MM-DD.log
      */
-    private static String createLogFileName() {
+    public static String createLogFileName(String prefix) {
         LocalDate currentDate = LocalDate.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         String dateString = currentDate.format(formatter);
-        return "OpeningBreakRange-" + dateString + ".log";
+        return prefix + dateString + ".log";
     }
 
     /**

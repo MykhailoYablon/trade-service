@@ -5,12 +5,13 @@ import com.example.tradeservice.entity.HistoricalData;
 import com.example.tradeservice.model.ContractHolder;
 import com.example.tradeservice.model.PositionHolder;
 import com.example.tradeservice.model.enums.TimeFrame;
-import com.example.tradeservice.repository.ContractRepository;
+import com.example.tradeservice.redis.ContractRepository;
 import com.example.tradeservice.repository.DataRequestRepository;
-import com.example.tradeservice.repository.HistoricalDataRepository;
+import com.example.tradeservice.redis.HistoricalDataRepository;
 import com.example.tradeservice.service.impl.OrderTrackerImpl;
 import com.example.tradeservice.service.impl.PositionTracker;
 import com.example.tradeservice.service.impl.TimeSeriesHandler;
+import com.example.tradeservice.strategy.StrategyService;
 import com.ib.client.*;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -115,7 +116,7 @@ public class TWSConnectionManager implements EWrapper {
             client.reqOpenOrders();
 
             //request all P&L for current positions
-                client.reqPnLSingle(autoIncrement.getAndIncrement(), this.managedAccount, "", 265598);
+            client.reqPnLSingle(autoIncrement.getAndIncrement(), this.managedAccount, "", 265598);
 
             client.getTwsConnectionTime();
 
@@ -131,26 +132,6 @@ public class TWSConnectionManager implements EWrapper {
             log.error("Error connecting to TWS: {}", e.getMessage());
 //            throw new RuntimeException(e);
         }
-    }
-
-    public void requestExistingData() {
-        log.info("Requesting existing positions and orders...");
-
-        // Request account summary
-        client.reqAccountSummary(9001, "All", "TotalCashValue,NetLiquidation");
-
-        // Request all positions
-        client.reqPositions();
-
-        // Request all open orders
-        client.reqAllOpenOrders();
-
-        //request all P&L for current positions
-        client.reqPnLSingle(autoIncrement.getAndIncrement(), this.managedAccount, "", 265598);
-
-        // Request executed trades for today
-//        ExecutionFilter filter = new ExecutionFilter();
-//        client.reqExecutions(9003, filter);
     }
 
     public void disconnect() {
@@ -414,10 +395,6 @@ public class TWSConnectionManager implements EWrapper {
 
     @Override
     public void historicalData(int reqId, Bar bar) {
-//        log.info("HistoricalData. " + reqId + " - Date: " + bar.time() + ", Open: " + bar.open() + ", High: "
-//                + bar.high() + ", Low: " + bar.low() + ", Close: " + bar.close() + ", Volume: " + bar.volume()
-//                + ", Count: " + bar.count() + ", WAP: " + bar.wap());
-
         //Move this to corresponding service
         DataRequest request = dataRequestRepository.findByReqId(reqId)
                 .orElseThrow(() -> new RuntimeException("DataRequest not found for reqId: " + reqId));
@@ -437,7 +414,6 @@ public class TWSConnectionManager implements EWrapper {
                 .wap(bar.wap().value())
                 .build();
 
-        // Save historical data (ON DUPLICATE KEY UPDATE if using MySQL)
         try {
             historicalDataRepository.save(data);
         } catch (DataIntegrityViolationException e) {

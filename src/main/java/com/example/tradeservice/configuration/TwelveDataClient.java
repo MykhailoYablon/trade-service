@@ -1,16 +1,14 @@
 package com.example.tradeservice.configuration;
 
 import com.example.tradeservice.model.StockResponse;
-import com.example.tradeservice.model.TwelveQuote;
+import com.example.tradeservice.model.TwelveCandleBar;
 import com.example.tradeservice.model.enums.TimeFrame;
-import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Configurable;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -21,6 +19,7 @@ import static com.example.tradeservice.model.enums.Endpoint.TWELVE_QUOTE;
 @Getter
 @Setter
 @Component
+@Slf4j
 public class TwelveDataClient {
 
     @Autowired
@@ -38,14 +37,15 @@ public class TwelveDataClient {
                 .body(StockResponse.class);
     }
 
-    public TwelveQuote quoteWithInterval(String symbol, TimeFrame timeFrame) {
+    public TwelveCandleBar quoteWithInterval(String symbol, TimeFrame timeFrame) {
+        log.info("Fetching candle for symbol - {} with timeframe - {}", symbol, timeFrame);
         return restClient.get()
                 .uri(TWELVE_QUOTE.url() + "?apikey=" + token
                         + "&symbol=" + symbol.toUpperCase()
                         + "&interval=" + timeFrame.getTwelveFormat()
                 )
                 .retrieve()
-                .body(TwelveQuote.class);
+                .body(TwelveCandleBar.class);
     }
 
 }

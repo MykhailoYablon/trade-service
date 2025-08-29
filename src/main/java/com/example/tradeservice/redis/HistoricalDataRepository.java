@@ -1,9 +1,8 @@
-package com.example.tradeservice.repository;
+package com.example.tradeservice.redis;
 
 import com.example.tradeservice.entity.HistoricalData;
 import com.example.tradeservice.entity.Position;
 import com.example.tradeservice.model.enums.TimeFrame;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;

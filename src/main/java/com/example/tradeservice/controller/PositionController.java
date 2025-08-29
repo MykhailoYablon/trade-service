@@ -3,7 +3,7 @@ package com.example.tradeservice.controller;
 import com.example.tradeservice.entity.HistoricalData;
 import com.example.tradeservice.entity.Position;
 import com.example.tradeservice.model.enums.TimeFrame;
-import com.example.tradeservice.repository.HistoricalDataRepository;
+import com.example.tradeservice.redis.HistoricalDataRepository;
 import com.example.tradeservice.service.PositionService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -36,12 +36,11 @@ public class PositionController {
     public List<HistoricalData> getHistoricalData(
             @PathVariable Integer conid,
             @PathVariable TimeFrame timeframe,
-            @RequestParam(defaultValue = "30") int days) {
+            @RequestParam(defaultValue = "3") int days) {
 
         LocalDateTime since = LocalDateTime.now().minusDays(days);
-        List<HistoricalData> data = historicalDataRepository
-                .findRecentData(conid, timeframe, since);
 
-        return data;
+        return historicalDataRepository
+                .findRecentData(conid, timeframe, since);
     }
 }
