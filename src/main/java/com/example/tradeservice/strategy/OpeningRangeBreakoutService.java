@@ -51,7 +51,7 @@ public class OpeningRangeBreakoutService {
     private TwelveDataClient twelveDataClient;
 
     // Scheduled tasks
-    @Scheduled(cron = "0 31-45/5 16 * * MON-FRI", zone = "GMT+3") // Every 5 minutes from 9:30-9:44
+//    @Scheduled(cron = "0 31-45/5 16 * * MON-FRI", zone = "GMT+3") // Every 5 minutes from 9:30-9:44
     public void collectOpeningRangeData() {
         if (currentState != TradingState.COLLECTING_OPENING_RANGE) {
             initializeForNewTradingDay();
@@ -76,7 +76,7 @@ public class OpeningRangeBreakoutService {
         }
     }
 
-    @Scheduled(fixedRate = 60000) // Every minute
+    //    @Scheduled(fixedRate = 60000) // Every minute
     public void monitorForBreakoutAndRetest() {
         if (currentState == TradingState.MONITORING_FOR_BREAKOUT ||
                 currentState == TradingState.MONITORING_FOR_RETEST) {

@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
                         columnList = "position_id, timeframe")
         })
 @Entity
-@RedisHash("historical_data")
+//@RedisHash("historical_data")
 public class HistoricalData {
 
     @Id

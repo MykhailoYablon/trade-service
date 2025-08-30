@@ -1,4 +1,4 @@
-package com.example.tradeservice.redis;
+package com.example.tradeservice.repository;
 
 import com.example.tradeservice.entity.HistoricalData;
 import com.example.tradeservice.entity.Position;

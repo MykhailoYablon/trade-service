@@ -2,12 +2,14 @@ package com.example.tradeservice.service;
 
 import com.example.tradeservice.entity.DataRequest;
 import com.example.tradeservice.entity.HistoricalData;
+import com.example.tradeservice.entity.Position;
 import com.example.tradeservice.model.ContractHolder;
 import com.example.tradeservice.model.PositionHolder;
 import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.redis.ContractRepository;
 import com.example.tradeservice.repository.DataRequestRepository;
-import com.example.tradeservice.redis.HistoricalDataRepository;
+import com.example.tradeservice.repository.HistoricalDataRepository;
+import com.example.tradeservice.service.impl.HistoricalDataCsvService;
 import com.example.tradeservice.service.impl.OrderTrackerImpl;
 import com.example.tradeservice.service.impl.PositionTracker;
 import com.example.tradeservice.service.impl.TimeSeriesHandler;
@@ -15,14 +17,18 @@ import com.example.tradeservice.strategy.StrategyService;
 import com.ib.client.*;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import redis.clients.jedis.exceptions.JedisDataException;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -48,6 +54,9 @@ public class TWSConnectionManager implements EWrapper {
     private final DataRequestRepository dataRequestRepository;
     private final AccountService accountService;
     private final TimeSeriesHandler timeSeriesHandler;
+
+    @Autowired
+    private HistoricalDataCsvService excelService;
 
     // Connection parameters
     private static final String HOST = "127.0.0.1";
@@ -221,7 +230,7 @@ public class TWSConnectionManager implements EWrapper {
         positionTracker.addPosition(new PositionHolder(contract, position, avgCost));
         int reqId = autoIncrement.getAndIncrement();
         positionTracker.createDataRequest(reqId, contract, "3 D", "5 mins");
-        client.reqHistoricalData(reqId, contract, "", "3 D", "5 mins",
+        client.reqHistoricalData(reqId, contract, "", "1 M", "5 mins",
                 "TRADES", 1, 1, false, null);
     }
 
@@ -399,10 +408,12 @@ public class TWSConnectionManager implements EWrapper {
         DataRequest request = dataRequestRepository.findByReqId(reqId)
                 .orElseThrow(() -> new RuntimeException("DataRequest not found for reqId: " + reqId));
 
-
         // Convert IB bar to entity
+        Position position = request.getPosition();
+        String symbol = position.getSymbol();
+
         HistoricalData data = HistoricalData.builder()
-                .position(request.getPosition())
+                .position(position)
                 .timestamp(parseIbTime(bar.time()))
                 .timeframe(TimeFrame.FIVE_MIN)
                 .open(BigDecimal.valueOf(bar.open()))
@@ -415,8 +426,16 @@ public class TWSConnectionManager implements EWrapper {
                 .build();
 
         try {
+
+            StringBuilder fileName = new StringBuilder("historical_data");
+            fileName.append("_").append(symbol);
+            fileName.append("_").append(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")));
+            fileName.append(".").append("csv");
+
+            excelService.exportToCsv(data, fileName.toString());
+
             historicalDataRepository.save(data);
-        } catch (DataIntegrityViolationException e) {
+        } catch (DataIntegrityViolationException | IOException e) {
             // Handle duplicate - update existing record
             log.debug("Duplicate bar data for reqId={}, timestamp={}", reqId, data.getTimestamp());
         }

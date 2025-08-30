@@ -1,6 +1,5 @@
 package com.example.tradeservice.strategy;
 
-import com.example.tradeservice.configuration.TwelveDataClient;
 import com.example.tradeservice.model.TwelveCandleBar;
 import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.strategy.enums.TradingState;
@@ -23,12 +22,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import static com.example.tradeservice.strategy.StrategyService.createLogFileName;
+import static com.example.tradeservice.strategy.StrategyService.writeToLog;
+
 @Service
 @Slf4j
 public class AsyncOpeningRangeBreakoutService {
 
     // Configuration
-    private static final List<String> SYMBOLS = List.of("AAPL", "MSFT", "GOOGL", "AMZN");
+    private static final List<String> SYMBOLS = List.of("MSFT", "GOOGL", "AMZN");
     private static final int OPENING_RANGE_MINUTES = 15; // 9:30-9:45
     private static final int BREAKOUT_CONFIRMATION_BARS = 2;
     private static final BigDecimal RETEST_BUFFER = new BigDecimal("0.02");
@@ -38,9 +40,9 @@ public class AsyncOpeningRangeBreakoutService {
     // Thread-safe state tracking for multiple symbols
     private final ConcurrentMap<String, SymbolTradingState> symbolStates = new ConcurrentHashMap<>();
     @Autowired
-    private TwelveDataClient twelveDataClient;
+    private StockDataClient stockDataClient;
 
-    @Scheduled(cron = "0 36-50/5 16 * * MON-FRI", zone = "GMT+3") // Every 5 minutes from 9:30-9:44
+    @Scheduled(cron = "0 36-50/5 18 * * MON-FRI", zone = "GMT+3") // Every 5 minutes from 9:30-9:44
     public void collectOpeningRangeDataForAllSymbols() {
         log.info("Starting opening range data collection for all symbols");
 
@@ -218,6 +220,12 @@ public class AsyncOpeningRangeBreakoutService {
         state.setCurrentState(TradingState.MONITORING_FOR_RETEST);
         state.setRetestStartTime(LocalDateTime.now());
 
+        String logFileName = createLogFileName("OpeningBreakRange-");
+
+        // Write some sample lines to the log file
+        writeToLog(logFileName, String.format("BREAKOUT %s with price - %s and high - %s", symbol,
+                breakoutBar.getClose(), breakoutData.breakoutHigh()));
+
         log.info("[{}] BREAKOUT CONFIRMED! Price: {}, Time: {}, Opening High: {}",
                 symbol, breakoutData.breakoutPrice(), breakoutData.breakoutTime(),
                 state.getOpeningRange().high());
@@ -256,7 +264,7 @@ public class AsyncOpeningRangeBreakoutService {
                 symbol, suggestedEntry, suggestedStop, riskAmount);
 
         // TODO: Implement your buy logic and risk management here
-        // processEntryAsync(symbol, suggestedEntry, suggestedStop, riskAmount);
+         processEntryAsync(symbol, suggestedEntry, suggestedStop, riskAmount);
 
         state.setCurrentState(TradingState.SETUP_COMPLETE);
     }
@@ -292,8 +300,11 @@ public class AsyncOpeningRangeBreakoutService {
             log.info("[{}] Processing entry order - Entry: {}, Stop: {}, Risk: {}",
                     symbol, entryPrice, stopPrice, riskAmount);
 
-            // Simulate order processing delay
-            Thread.sleep(100);
+            String logFileName = createLogFileName("Retest-");
+
+            // Write some sample lines to the log file
+            writeToLog(logFileName, String.format("RETEST %s with entry price - %s and stop loss price - %s", symbol,
+                    entryPrice, stopPrice));
 
             log.info("[{}] Entry order processed successfully", symbol);
         } catch (Exception e) {
@@ -305,11 +316,11 @@ public class AsyncOpeningRangeBreakoutService {
 
     // Mock methods - replace with your actual data fetching logic
     private TwelveCandleBar fetchFiveMinuteCandle(String symbol) {
-        return twelveDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
+        return stockDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
     }
 
     private TwelveCandleBar fetchOneMinuteCandle(String symbol) {
-        return twelveDataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN);
+        return stockDataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN);
     }
 
     // Public methods for monitoring and control
