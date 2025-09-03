@@ -40,7 +40,7 @@ public class AsyncOpeningRangeBreakoutService {
     // Thread-safe state tracking for multiple symbols
     private final ConcurrentMap<String, SymbolTradingState> symbolStates = new ConcurrentHashMap<>();
     @Autowired
-    private StockDataClient stockDataClient;
+    private CsvStockDataClient stockDataClient;
 
     @Scheduled(cron = "0 36-50/5 18 * * MON-FRI", zone = "GMT+3") // Every 5 minutes from 9:30-9:44
     public void collectOpeningRangeDataForAllSymbols() {
@@ -305,6 +305,10 @@ public class AsyncOpeningRangeBreakoutService {
             // Write some sample lines to the log file
             writeToLog(logFileName, String.format("RETEST %s with entry price - %s and stop loss price - %s", symbol,
                     entryPrice, stopPrice));
+
+            // Lets say 100 shares
+            // calculatePositionSize(riskAmount);
+            var positionSize = 100;
 
             log.info("[{}] Entry order processed successfully", symbol);
         } catch (Exception e) {

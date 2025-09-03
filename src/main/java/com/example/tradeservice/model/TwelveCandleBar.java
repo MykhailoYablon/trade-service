@@ -1,12 +1,21 @@
 package com.example.tradeservice.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.opencsv.bean.CsvBindByName;
+import com.opencsv.bean.CsvDate;
 import lombok.Data;
 import lombok.Setter;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
+import static java.time.ZoneId.systemDefault;
 
 @Setter
 @Data
 public class TwelveCandleBar {
+
+    @CsvBindByName(column = "Stock Symbol")
     @JsonProperty("symbol")
     String symbol;
     @JsonProperty("name")
@@ -17,6 +26,7 @@ public class TwelveCandleBar {
     String mic_code;
     @JsonProperty("currency")
     String currency;
+    @CsvBindByName(column = "Date Time")
     @JsonProperty("datetime")
     String datetime;
     @JsonProperty("timestamp")
@@ -25,10 +35,13 @@ public class TwelveCandleBar {
     int last_quote_at;
     @JsonProperty("open")
     String myopen;
+    @CsvBindByName(column = "High")
     @JsonProperty("high")
     String high;
+    @CsvBindByName(column = "Low")
     @JsonProperty("low")
     String low;
+    @CsvBindByName(column = "close")
     @JsonProperty("close")
     String close;
     @JsonProperty("volume")
@@ -59,4 +72,11 @@ public class TwelveCandleBar {
     String extended_price;
     @JsonProperty("extended_timestamp")
     String extended_timestamp;
+
+
+    public long getEpochMillis() {
+        return LocalDateTime.parse(
+                datetime, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        ).atZone(systemDefault()).toInstant().toEpochMilli();
+    }
 }

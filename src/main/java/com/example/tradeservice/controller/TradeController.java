@@ -1,19 +1,17 @@
 package com.example.tradeservice.controller;
 
 import com.example.tradeservice.configuration.FinnhubClient;
-import com.example.tradeservice.model.enums.TimeFrame;
-import com.example.tradeservice.configuration.TwelveDataClient;
 import com.example.tradeservice.handler.StockTradeWebSocketHandler;
 import com.example.tradeservice.handler.TradeUpdatedEvent;
 import com.example.tradeservice.model.*;
+import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.service.TradeDataService;
 import com.example.tradeservice.service.impl.HistoricalDataCsvService;
 import com.example.tradeservice.service.impl.YearlyHistoricalDataService;
+import com.example.tradeservice.strategy.CsvStockDataClient;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationListener;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
@@ -22,8 +20,6 @@ import reactor.core.publisher.Flux;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -37,7 +33,7 @@ public class TradeController {
     private final TradeDataService tradeDataService;
     private final StockTradeWebSocketHandler webSocketHandler;
     private final FinnhubClient finnhubClient;
-    private final TwelveDataClient twelveDataClient;
+    private final CsvStockDataClient dataClient;
     private final HistoricalDataCsvService csvService;
     private final YearlyHistoricalDataService historicalDataService;
 
@@ -141,29 +137,31 @@ public class TradeController {
     public List<StockResponse.Value> getTimeSeries(@RequestParam String symbol) {
         String timeFrame = TimeFrame.FIVE_MIN.getTwelveFormat();
 
+        dataClient.initializeCsvForDay(symbol);
+
+        dataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
+
 //        List<StockResponse.Value> threeFirstFiveMinutes = historicalDataService
 //                .collectYearlyDataEfficiently(symbol, TimeFrame.FIVE_MIN, 2025, 3);
 
-        List<StockResponse.Value> oneMinuteCandles = historicalDataService
-                .collectYearlyDataEfficiently(symbol, TimeFrame.ONE_MIN, 2025, null);
+//        List<StockResponse.Value> oneMinuteCandles = historicalDataService
+//                .collectYearlyDataEfficiently(symbol, TimeFrame.ONE_MIN, 2025, null);
 
 
-        try {
-// Create exports directory if it doesn't exist
-            new File("exports").mkdirs();
+//        try {
+            // Create exports directory if it doesn't exist
+//            new File("exports").mkdirs();
             // Export to CSV
 //            String fileName = String.format("%s_%s_%d_morning_data.csv", symbol, timeFrame, 2025);
 //            csvService.exportToCsvTwelve(symbol, timeFrame, threeFirstFiveMinutes, "exports/" + fileName);
 
+//            String fileName2 = String.format("%s_%s_%d_data.csv", symbol, timeFrame, 2025);
+//            csvService.exportToCsvTwelve(symbol, timeFrame, oneMinuteCandles, "exports/" + fileName2);
 
+//        } catch (IOException e) {
+//            log.debug("eeeeeeeeeeee");
+//        }
 
-            String fileName2 = String.format("%s_%s_%d_one_minute_data.csv", symbol, timeFrame, 2025);
-            csvService.exportToCsvTwelve(symbol, timeFrame, oneMinuteCandles, "exports/" + fileName2);
-
-        } catch (IOException e) {
-            log.debug("eeeeeeeeeeee");
-        }
-
-        return oneMinuteCandles;
+        return null;
     }
 }

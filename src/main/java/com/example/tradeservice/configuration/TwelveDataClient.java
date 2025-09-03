@@ -40,6 +40,12 @@ public class TwelveDataClient implements StockDataClient {
                 .body(StockResponse.class);
     }
 
+    @Override
+    public void initializeCsvForDay(String symbol) {
+        //do nothing
+    }
+
+    @Override
     public TwelveCandleBar quoteWithInterval(String symbol, TimeFrame timeFrame) {
         log.info("Fetching candle for symbol - {} with timeframe - {}", symbol, timeFrame);
         return restClient.get()
