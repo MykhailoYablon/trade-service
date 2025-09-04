@@ -141,27 +141,21 @@ public class TradeController {
 
         dataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
 
-//        List<StockResponse.Value> threeFirstFiveMinutes = historicalDataService
-//                .collectYearlyDataEfficiently(symbol, TimeFrame.FIVE_MIN, 2025, 3);
-
-//        List<StockResponse.Value> oneMinuteCandles = historicalDataService
-//                .collectYearlyDataEfficiently(symbol, TimeFrame.ONE_MIN, 2025, null);
-
-
-//        try {
-            // Create exports directory if it doesn't exist
-//            new File("exports").mkdirs();
-            // Export to CSV
-//            String fileName = String.format("%s_%s_%d_morning_data.csv", symbol, timeFrame, 2025);
-//            csvService.exportToCsvTwelve(symbol, timeFrame, threeFirstFiveMinutes, "exports/" + fileName);
-
-//            String fileName2 = String.format("%s_%s_%d_data.csv", symbol, timeFrame, 2025);
-//            csvService.exportToCsvTwelve(symbol, timeFrame, oneMinuteCandles, "exports/" + fileName2);
-
-//        } catch (IOException e) {
-//            log.debug("eeeeeeeeeeee");
-//        }
 
         return null;
+    }
+
+    @GetMapping("/csv")
+    public void generateCsv(@RequestParam String symbol, @RequestParam TimeFrame timeFrame) {
+        List<StockResponse.Value> candles;
+        new File("exports/" + symbol + "/" + timeFrame).mkdirs();
+        if (TimeFrame.FIVE_MIN.equals(timeFrame)) {
+            candles = historicalDataService.collectYearlyDataEfficiently(symbol, TimeFrame.FIVE_MIN, 2025, 3);
+        } else {
+            candles = historicalDataService
+                    .collectYearlyDataEfficiently(symbol, TimeFrame.ONE_MIN, 2025, null);
+        }
+
+        csvService.exportToCsvTwelve(symbol, timeFrame, candles);
     }
 }

@@ -59,7 +59,7 @@ public class YearlyHistoricalDataService {
                         log.info("Month {}: Retrieved {} records, filtered to {} records",
                                 month, monthData.size(), filteredData.size());
                     } else {
-                        allFilteredData = monthData;
+                        allFilteredData.addAll(monthData);
                     }
 
                 } else {
