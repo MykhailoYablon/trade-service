@@ -134,7 +134,7 @@ public class YearlyHistoricalDataService {
         return !isNonTradingDay(date);
     }
 
-    private boolean isNonTradingDay(LocalDate date) {
+    public static boolean isNonTradingDay(LocalDate date) {
         // Skip weekends
         if (date.getDayOfWeek() == DayOfWeek.SATURDAY || date.getDayOfWeek() == DayOfWeek.SUNDAY) {
             return true;

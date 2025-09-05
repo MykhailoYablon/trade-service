@@ -30,7 +30,7 @@ import static com.example.tradeservice.strategy.StrategyService.writeToLog;
 public class AsyncOpeningRangeBreakoutService {
 
     // Configuration
-    private static final List<String> SYMBOLS = List.of("MSFT", "GOOGL", "AMZN");
+    private static final List<String> SYMBOLS = List.of("MSFT", "GOOGL", "exports/AMZN");
     private static final int OPENING_RANGE_MINUTES = 15; // 9:30-9:45
     private static final int BREAKOUT_CONFIRMATION_BARS = 2;
     private static final BigDecimal RETEST_BUFFER = new BigDecimal("0.02");

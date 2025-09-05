@@ -20,8 +20,12 @@ import reactor.core.publisher.Flux;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
+import static com.example.tradeservice.service.impl.YearlyHistoricalDataService.isNonTradingDay;
 
 @Slf4j
 @CrossOrigin(origins = "*")
@@ -133,13 +137,16 @@ public class TradeController {
         return finnhubClient.search(symbol);
     }
 
-    @GetMapping("/time-series")
-    public List<StockResponse.Value> getTimeSeries(@RequestParam String symbol) {
-        String timeFrame = TimeFrame.FIVE_MIN.getTwelveFormat();
+    @GetMapping("/retest")
+    public List<StockResponse.Value> retestToday(@RequestParam String symbol, @RequestParam String date) {
 
-        dataClient.initializeCsvForDay(symbol);
+        if (Boolean.TRUE.equals(isNonTradingDay(LocalDate.parse(date)))) {
+            return Collections.emptyList();
+        }
 
-        dataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
+        dataClient.initializeCsvForDay(symbol, date);
+
+        TwelveCandleBar twelveCandleBar = dataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
 
 
         return null;

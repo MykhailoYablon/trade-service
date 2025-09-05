@@ -1,5 +1,6 @@
 package com.example.tradeservice.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.opencsv.bean.CsvBindByName;
 import com.opencsv.bean.CsvDate;
@@ -13,6 +14,7 @@ import static java.time.ZoneId.systemDefault;
 
 @Setter
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class TwelveCandleBar {
 
     @CsvBindByName(column = "Stock Symbol")

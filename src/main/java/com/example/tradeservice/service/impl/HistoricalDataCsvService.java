@@ -59,7 +59,7 @@ public class HistoricalDataCsvService {
                 writer.print(CSV_HEADER);
 
                 // Write data rows
-                for (StockResponse.Value data : dataList) {
+                for (StockResponse.Value data : v) {
                     writer.printf("%s,%s,%s,%s,%s%n",
                             escapeCsvValue(symbol),
                             data.getHigh(),

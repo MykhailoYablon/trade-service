@@ -30,10 +30,11 @@ public class CsvStockDataClient implements StockDataClient {
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
-    public void initializeCsvForDay(String symbol) {
-        //do nothing
-        String fiveMinFile = String.format("exports/%s_%s_%d_data.csv", symbol, TimeFrame.FIVE_MIN.getTwelveFormat(), 2025);
-        String oneMinFile = String.format("exports/%s_%s_%d_data.csv", symbol, TimeFrame.ONE_MIN.getTwelveFormat(), 2025);
+    public void initializeCsvForDay(String symbol, String date) {
+        //rewrite to parse day
+        String fiveMinFile = String.format("exports/%s/%s/%s_data.csv", symbol, TimeFrame.FIVE_MIN, date);
+
+        String oneMinFile = String.format("exports/%s/%s/%s_data.csv", symbol, TimeFrame.ONE_MIN, date);
 
         //save 5 mins in redis
         List<TwelveCandleBar> fiveMinData = initializeBarsFromCsv(fiveMinFile);
@@ -41,9 +42,9 @@ public class CsvStockDataClient implements StockDataClient {
         List<TwelveCandleBar> oneMinData = initializeBarsFromCsv(oneMinFile);
 
         //save in Redis
-        fiveMinData.forEach(record -> storeInRedis(record, TimeFrame.FIVE_MIN));
+        fiveMinData.forEach(record -> storeInRedis(record, TimeFrame.FIVE_MIN, date));
 
-        oneMinData.forEach(record -> storeInRedis(record, TimeFrame.ONE_MIN));
+        oneMinData.forEach(record -> storeInRedis(record, TimeFrame.ONE_MIN, date));
 
     }
 
@@ -64,7 +65,7 @@ public class CsvStockDataClient implements StockDataClient {
             CsvToBean<TwelveCandleBar> csvToBean = new CsvToBeanBuilder<TwelveCandleBar>(reader)
                     .withType(TwelveCandleBar.class)
                     .withIgnoreLeadingWhiteSpace(true)
-                    .withFilter(getDateFilter(LocalDateTime.now().minusDays(10)))
+//                    .withFilter(getDateFilter(LocalDateTime.now().minusDays(10)))
                     .build();
 
             List<TwelveCandleBar> data = csvToBean.parse();
@@ -78,8 +79,8 @@ public class CsvStockDataClient implements StockDataClient {
         }
     }
 
-    private void storeInRedis(TwelveCandleBar candle, TimeFrame timeFrame) {
-        String key = "candles:" + candle.getSymbol() + ":" + timeFrame.getTwelveFormat();
+    private void storeInRedis(TwelveCandleBar candle, TimeFrame timeFrame, String date) {
+        String key = "candles:" + candle.getSymbol() + ":" + timeFrame.getTwelveFormat() + ":" + date;
         String json;
         try {
             json = mapper.writeValueAsString(candle);

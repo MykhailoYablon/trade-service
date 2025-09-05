@@ -41,7 +41,7 @@ public class TwelveDataClient implements StockDataClient {
     }
 
     @Override
-    public void initializeCsvForDay(String symbol) {
+    public void initializeCsvForDay(String symbol, String date) {
         //do nothing
     }
 
