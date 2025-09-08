@@ -6,7 +6,6 @@ import com.example.tradeservice.handler.TradeUpdatedEvent;
 import com.example.tradeservice.model.*;
 import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.service.TradeDataService;
-import com.example.tradeservice.service.impl.HistoricalDataCsvService;
 import com.example.tradeservice.service.impl.YearlyHistoricalDataService;
 import com.example.tradeservice.strategy.CsvStockDataClient;
 import lombok.AllArgsConstructor;
@@ -18,8 +17,6 @@ import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
-import java.io.File;
-import java.io.IOException;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
@@ -38,7 +35,6 @@ public class TradeController {
     private final StockTradeWebSocketHandler webSocketHandler;
     private final FinnhubClient finnhubClient;
     private final CsvStockDataClient dataClient;
-    private final HistoricalDataCsvService csvService;
     private final YearlyHistoricalDataService historicalDataService;
 
     // WebSocket subscription management
@@ -138,7 +134,7 @@ public class TradeController {
     }
 
     @GetMapping("/retest")
-    public List<StockResponse.Value> retestToday(@RequestParam String symbol, @RequestParam String date) {
+    public List<StockResponse.Value> retestDay(@RequestParam String symbol, @RequestParam String date) {
 
         if (Boolean.TRUE.equals(isNonTradingDay(LocalDate.parse(date)))) {
             return Collections.emptyList();
@@ -146,7 +142,13 @@ public class TradeController {
 
         dataClient.initializeCsvForDay(symbol, date);
 
-        TwelveCandleBar twelveCandleBar = dataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
+//        TwelveCandleBar twelveCandleBar = dataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN, date);
+//        TwelveCandleBar twelveCandleBar2 = dataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN, date);
+//        TwelveCandleBar twelveCandleBar3 = dataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN, date);
+//        TwelveCandleBar twelveCandleBar1 = dataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN, date);
+//        TwelveCandleBar twelveCandleBar12 = dataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN, date);
+
+        //start scheduled method
 
 
         return null;
@@ -154,15 +156,6 @@ public class TradeController {
 
     @GetMapping("/csv")
     public void generateCsv(@RequestParam String symbol, @RequestParam TimeFrame timeFrame) {
-        List<StockResponse.Value> candles;
-        new File("exports/" + symbol + "/" + timeFrame).mkdirs();
-        if (TimeFrame.FIVE_MIN.equals(timeFrame)) {
-            candles = historicalDataService.collectYearlyDataEfficiently(symbol, TimeFrame.FIVE_MIN, 2025, 3);
-        } else {
-            candles = historicalDataService
-                    .collectYearlyDataEfficiently(symbol, TimeFrame.ONE_MIN, 2025, null);
-        }
-
-        csvService.exportToCsvTwelve(symbol, timeFrame, candles);
+        historicalDataService.collectYearlyDataEfficiently(symbol, timeFrame, 2025);
     }
 }

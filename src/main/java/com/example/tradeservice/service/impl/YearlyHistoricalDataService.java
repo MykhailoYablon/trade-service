@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -20,20 +21,19 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 public class YearlyHistoricalDataService {
 
-    private final HistoricalDataCsvService excelService;
     private final TwelveDataClient twelveDataClient;
+    private final HistoricalDataCsvService csvService;
 
     private static final DateTimeFormatter API_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd H:mm:ss");
     private static final DateTimeFormatter RESPONSE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final LocalTime MARKET_OPEN = LocalTime.of(9, 30, 0);
     private static final Set<LocalDate> US_HOLIDAYS = getUSHolidays(2025);
-    private static final int RATE_LIMIT_DELAY_MS = 8000; // 8 seconds between calls (8 calls per minute)
+    private static final int RATE_LIMIT_DELAY_MS = 7600; // 7.6 seconds between calls (8 calls per minute)
+    private static int totalApiCalls = 0;
 
-    public List<StockResponse.Value> collectYearlyDataEfficiently(String symbol, TimeFrame timeFrame, int year,
-                                                                  Integer limitCandles) {
-        List<StockResponse.Value> allFilteredData = new ArrayList<>();
-        int totalApiCalls = 0;
 
+    public void collectYearlyDataEfficiently(String symbol, TimeFrame timeFrame, int year) {
+        int allFilteredDataSize = 0;
         // Loop through each month
         for (int month = 1; month <= 12; month++) {
             try {
@@ -43,32 +43,37 @@ public class YearlyHistoricalDataService {
                 LocalDate firstDayOfMonth = LocalDate.of(year, month, 1);
                 LocalDate lastDayOfMonth = firstDayOfMonth.withDayOfMonth(firstDayOfMonth.lengthOfMonth());
 
+                List<StockResponse.Value> monthData = new ArrayList<>();
                 // API call for entire month (9:30 AM to 4:00 PM)
-                String startTime = firstDayOfMonth.atTime(9, 30, 0).format(API_FORMATTER);
-                String endTime = lastDayOfMonth.atTime(12, 0, 0).format(API_FORMATTER);
 
-                log.info("API Call {}: {} to {}", ++totalApiCalls, startTime, endTime);
+                if (TimeFrame.FIVE_MIN.equals(timeFrame)) {
+                    // Process 5-minute timeframe in 3 chunks to stay under 5000 record limit
+                    monthData = processMonthInChunks(symbol, timeFrame, firstDayOfMonth, lastDayOfMonth, 3);
+                } else {
+                    // Process 1-minute timeframe in smaller chunks (e.g., daily or weekly)
+                    monthData = processMonthInChunks(symbol, timeFrame, firstDayOfMonth, lastDayOfMonth, 4);
+//                            calculateOptimalChunks(firstDayOfMonth, lastDayOfMonth));
+                }
 
-                List<StockResponse.Value> monthData = twelveDataClient.timeSeries(symbol, timeFrame.getTwelveFormat(), startTime, endTime).getValues();
+                if (!monthData.isEmpty()) {
+                    // Filter to get only required intervals per trading day
+                    int limitCandles = TimeFrame.FIVE_MIN.equals(timeFrame) ? 4 : 180;
+                    int skip = TimeFrame.FIVE_MIN.equals(timeFrame) ? 1 : 15;
 
-                if (monthData != null && !monthData.isEmpty()) {
-                    // Filter to get only first 3 intervals per trading day
-                    if (Objects.nonNull(limitCandles)) {
-                        List<StockResponse.Value> filteredData = limitFirstIntervalsPerDay(monthData, limitCandles);
-                        allFilteredData.addAll(filteredData);
-                        log.info("Month {}: Retrieved {} records, filtered to {} records",
-                                month, monthData.size(), filteredData.size());
-                    } else {
-                        allFilteredData.addAll(monthData);
-                    }
+                    List<StockResponse.Value> filteredData = limitFirstIntervalsPerDay(monthData, timeFrame, skip, limitCandles);
 
+                    csvService.exportToCsvTwelve(symbol, timeFrame, filteredData);
+                    allFilteredDataSize += filteredData.size();
+
+                    log.info("Month {}: Retrieved {} records, filtered to {} records",
+                            month, monthData.size(), filteredData.size());
                 } else {
                     log.warn("No data returned for month {}", month);
                 }
 
                 // Rate limiting: wait 8 seconds between API calls
                 if (month < 12) { // Don't wait after the last month
-                    log.info("Waiting 8 seconds for rate limit...");
+                    log.info("Waiting 7.6 seconds for rate limit...");
                     Thread.sleep(RATE_LIMIT_DELAY_MS);
                 }
 
@@ -79,12 +84,11 @@ public class YearlyHistoricalDataService {
         }
 
         log.info("Collection complete! Total API calls: {}, Total filtered records: {}",
-                totalApiCalls, allFilteredData.size());
-
-        return allFilteredData;
+                totalApiCalls, allFilteredDataSize);
     }
 
-    public List<StockResponse.Value> limitFirstIntervalsPerDay(List<StockResponse.Value> monthData, int limit) {
+    public List<StockResponse.Value> limitFirstIntervalsPerDay(List<StockResponse.Value> monthData,
+                                                               TimeFrame timeFrame, int skip, int limit) {
         Map<LocalDate, List<StockResponse.Value>> dataByDate = monthData.stream()
                 .filter(data -> isTradingDay(parseDateTime(data.getDatetime()).toLocalDate()))
                 .collect(Collectors.groupingBy(
@@ -101,9 +105,10 @@ public class YearlyHistoricalDataService {
 
             // Sort by datetime and get first 3 intervals after market open
             List<StockResponse.Value> first3Intervals = dayData.stream()
-                    .filter(data -> isWithinFirstThreeIntervals(parseDateTime(data.getDatetime())))
+                    .filter(data -> TimeFrame.ONE_MIN.equals(timeFrame) ?
+                            isAfterFifteenInterval(parseDateTime(data.getDatetime())) :
+                            isWithinFirstThreeIntervals(parseDateTime(data.getDatetime())))
                     .sorted(Comparator.comparing(data -> parseDateTime(data.getDatetime())))
-                    .limit(limit)
                     .toList();
 
             filteredData.addAll(first3Intervals);
@@ -128,6 +133,13 @@ public class YearlyHistoricalDataService {
         LocalTime cutoffTime = marketOpen.plusMinutes(15); // First 3 intervals of 5 minutes = 15 minutes
 
         return !time.isBefore(marketOpen) && !time.isAfter(cutoffTime);
+    }
+
+    private boolean isAfterFifteenInterval(LocalDateTime timestamp) {
+        LocalTime time = timestamp.toLocalTime();
+        LocalTime cutoffTime = MARKET_OPEN.plusMinutes(15); // First 3 intervals of 5 minutes = 15 minutes
+
+        return time.isAfter(cutoffTime) && time.isBefore(MARKET_OPEN.plusHours(2));
     }
 
     private boolean isTradingDay(LocalDate date) {
@@ -172,5 +184,73 @@ public class YearlyHistoricalDataService {
     private static LocalDate getLastWeekdayOfMonth(int year, int month, DayOfWeek dayOfWeek) {
         LocalDate firstOfMonth = LocalDate.of(year, month, 1);
         return firstOfMonth.with(java.time.temporal.TemporalAdjusters.lastInMonth(dayOfWeek));
+    }
+
+    /**
+     * Process a month in chunks to avoid the 5000 record API limit
+     */
+    private List<StockResponse.Value> processMonthInChunks(String symbol, TimeFrame timeFrame,
+                                                           LocalDate firstDay, LocalDate lastDay,
+                                                           int numberOfChunks) {
+        List<StockResponse.Value> allChunkData = new ArrayList<>();
+
+        // Calculate chunk duration in days
+        long totalDays = ChronoUnit.DAYS.between(firstDay, lastDay) + 1;
+        long daysPerChunk = Math.max(1, totalDays / numberOfChunks);
+
+        LocalDate chunkStart = firstDay;
+        int chunkNumber = 1;
+
+        while (!chunkStart.isAfter(lastDay)) {
+            LocalDate chunkEnd = chunkStart.plusDays(daysPerChunk - 1);
+            if (chunkEnd.isAfter(lastDay)) {
+                chunkEnd = lastDay;
+            }
+
+            try {
+                String startTime;
+                String endTime;
+
+                if (TimeFrame.FIVE_MIN.equals(timeFrame)) {
+                    startTime = chunkStart.atTime(9, 30, 0).format(API_FORMATTER);
+                    endTime = chunkEnd.atTime(9, 46, 0).format(API_FORMATTER);
+                } else {
+                    startTime = chunkStart.atTime(9, 46, 0).format(API_FORMATTER);
+                    endTime = chunkEnd.atTime(11, 0, 0).format(API_FORMATTER);
+                }
+
+                log.info("API Call {}: Chunk {}/{} - {} to {}", ++totalApiCalls, chunkNumber, numberOfChunks, startTime, endTime);
+
+                List<StockResponse.Value> chunkData = twelveDataClient.timeSeries(symbol, timeFrame.getTwelveFormat(), startTime, endTime).getValues();
+
+                if (chunkData != null && !chunkData.isEmpty()) {
+                    allChunkData.addAll(chunkData);
+                    log.info("Chunk {}: Retrieved {} records", chunkNumber, chunkData.size());
+
+                    // Check if we're approaching the 5000 record limit
+                    if (chunkData.size() >= 4500) {
+                        log.warn("Chunk {} returned {} records - close to API limit. Consider smaller chunks.",
+                                chunkNumber, chunkData.size());
+                    }
+                } else {
+                    log.warn("No data returned for chunk {} ({} to {})", chunkNumber, chunkStart, chunkEnd);
+                }
+
+                // Rate limiting: wait 8 seconds between API calls (except for the last chunk of the last month)
+                if (!chunkStart.plusDays(daysPerChunk).isAfter(lastDay) || chunkNumber < numberOfChunks) {
+                    log.info("Waiting chunk for rate limit...");
+                    Thread.sleep(RATE_LIMIT_DELAY_MS);
+                }
+
+            } catch (Exception e) {
+                log.error("Error processing chunk {} ({} to {}): {}", chunkNumber, chunkStart, chunkEnd, e.getMessage(), e);
+                // Continue with next chunk
+            }
+
+            chunkStart = chunkStart.plusDays(daysPerChunk);
+            chunkNumber++;
+        }
+
+        return allChunkData;
     }
 }

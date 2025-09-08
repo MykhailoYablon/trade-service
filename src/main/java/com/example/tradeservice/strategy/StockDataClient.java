@@ -7,5 +7,5 @@ public interface StockDataClient {
 
     void initializeCsvForDay(String symbol, String date);
 
-    TwelveCandleBar quoteWithInterval(String symbol, TimeFrame timeFrame);
+    TwelveCandleBar quoteWithInterval(String symbol, TimeFrame timeFrame, String date);
 }

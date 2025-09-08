@@ -31,6 +31,11 @@ public class CsvStockDataClient implements StockDataClient {
 
     @Override
     public void initializeCsvForDay(String symbol, String date) {
+        //clear redis records
+        String keyFiveMin = "candles:" + symbol + ":" + TimeFrame.FIVE_MIN + ":" + date;
+        String keyOneMin = "candles:" + symbol + ":" + TimeFrame.ONE_MIN + ":" + date;
+        redisTemplate.delete(keyFiveMin);
+        redisTemplate.delete(keyOneMin);
         //rewrite to parse day
         String fiveMinFile = String.format("exports/%s/%s/%s_data.csv", symbol, TimeFrame.FIVE_MIN, date);
 
@@ -49,9 +54,9 @@ public class CsvStockDataClient implements StockDataClient {
     }
 
     @Override
-    public TwelveCandleBar quoteWithInterval(String symbol, TimeFrame timeFrame) {
+    public TwelveCandleBar quoteWithInterval(String symbol, TimeFrame timeFrame, String date) {
         try {
-            return fetchNextCandle(symbol, timeFrame);
+            return fetchNextCandle(symbol, timeFrame, date);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -80,7 +85,7 @@ public class CsvStockDataClient implements StockDataClient {
     }
 
     private void storeInRedis(TwelveCandleBar candle, TimeFrame timeFrame, String date) {
-        String key = "candles:" + candle.getSymbol() + ":" + timeFrame.getTwelveFormat() + ":" + date;
+        String key = "candles:" + candle.getSymbol() + ":" + timeFrame + ":" + date;
         String json;
         try {
             json = mapper.writeValueAsString(candle);
@@ -90,8 +95,8 @@ public class CsvStockDataClient implements StockDataClient {
         redisTemplate.opsForList().rightPush(key, json); // enqueue at the end (FIFO)
     }
 
-    public TwelveCandleBar fetchNextCandle(String symbol, TimeFrame timeFrame) throws Exception {
-        String key = "candles:" + symbol + ":" + timeFrame.getTwelveFormat();
+    public TwelveCandleBar fetchNextCandle(String symbol, TimeFrame timeFrame, String date) throws Exception {
+        String key = "candles:" + symbol + ":" + timeFrame + ":" + date;
         String json = redisTemplate.opsForList().leftPop(key); // dequeue oldest
         if (json == null) return null;
         return mapper.readValue(json, TwelveCandleBar.class);

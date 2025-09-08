@@ -105,7 +105,7 @@ public class StrategyService {
      * - *: month (every month)
      * - ?: day of week (any day)
      */
-    @Scheduled(cron = "0 35 16 * * MON-FRI", zone = "GMT+3")
+//    @Scheduled(cron = "0 35 16 * * MON-FRI", zone = "GMT+3")
     public void batch() {
         //batch not working due to free account limitation
         List<String> symbolList = List.of("MSFT");
@@ -116,8 +116,8 @@ public class StrategyService {
         // 1. Fetch data for opening 15 min range asynchronously for several symbols
         //get last 5 min candle
         int attemptCount = 0;
-
-        TwelveCandleBar quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
+        String date = LocalDate.now().toString();
+        TwelveCandleBar quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN, date);
 
         while (attemptCount < MAX_RETRY_ATTEMPTS) {
             attemptCount++;
@@ -159,7 +159,7 @@ public class StrategyService {
                     }
 
                     // Make API call again to get fresh response
-                    quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
+                    quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN, date);
                 }
             }
         }
@@ -170,7 +170,8 @@ public class StrategyService {
         boolean isRetest = false;
 
         while (true) {
-            TwelveCandleBar quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN);
+            String date = LocalDate.now().toString();
+            TwelveCandleBar quote = twelveDataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN, date);
             double closePrice = Double.parseDouble(quote.getClose());
             if (!isBreak) {
                 if (closePrice > high) {

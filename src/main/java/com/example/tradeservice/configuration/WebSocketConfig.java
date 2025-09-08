@@ -23,7 +23,9 @@ public class WebSocketConfig {
                 handler,
                 websocketUrl + "?token=" + token
         );
-        manager.setAutoStartup(true);
+
+        //turn on websocket
+        manager.setAutoStartup(false);
         return manager;
     }
 }

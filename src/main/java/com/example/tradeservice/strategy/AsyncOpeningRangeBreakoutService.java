@@ -14,6 +14,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +31,7 @@ import static com.example.tradeservice.strategy.StrategyService.writeToLog;
 public class AsyncOpeningRangeBreakoutService {
 
     // Configuration
-    private static final List<String> SYMBOLS = List.of("MSFT", "GOOGL", "exports/AMZN");
+    private static final List<String> SYMBOLS = List.of("MSFT", "GOOGL", "AMZN");
     private static final int OPENING_RANGE_MINUTES = 15; // 9:30-9:45
     private static final int BREAKOUT_CONFIRMATION_BARS = 2;
     private static final BigDecimal RETEST_BUFFER = new BigDecimal("0.02");
@@ -42,7 +43,7 @@ public class AsyncOpeningRangeBreakoutService {
     @Autowired
     private CsvStockDataClient stockDataClient;
 
-    @Scheduled(cron = "0 36-50/5 18 * * MON-FRI", zone = "GMT+3") // Every 5 minutes from 9:30-9:44
+    @Scheduled(cron = "0 42-57/5 11 * * MON-FRI", zone = "GMT+3") // Every 5 minutes from 9:30-9:44
     public void collectOpeningRangeDataForAllSymbols() {
         log.info("Starting opening range data collection for all symbols");
 
@@ -76,8 +77,9 @@ public class AsyncOpeningRangeBreakoutService {
             if (state.getCurrentState() != TradingState.COLLECTING_OPENING_RANGE) {
                 initializeSymbolForNewTradingDay(symbol, state);
             }
+            String date = "2025-09-04";
 
-            TwelveCandleBar fiveMinBar = fetchFiveMinuteCandle(symbol);
+            TwelveCandleBar fiveMinBar = fetchFiveMinuteCandle(symbol, date);
             if (fiveMinBar != null) {
                 state.getFiveMinuteBars().add(fiveMinBar);
 
@@ -104,7 +106,9 @@ public class AsyncOpeningRangeBreakoutService {
             SymbolTradingState state = symbolStates.get(symbol);
             if (state == null) return CompletableFuture.completedFuture(null);
 
-            TwelveCandleBar oneMinBar = fetchOneMinuteCandle(symbol);
+            String date = "2025-09-04";
+
+            TwelveCandleBar oneMinBar = fetchOneMinuteCandle(symbol, date);
             if (oneMinBar != null) {
 
                 if (state.getCurrentState() == TradingState.MONITORING_FOR_BREAKOUT) {
@@ -319,12 +323,12 @@ public class AsyncOpeningRangeBreakoutService {
     }
 
     // Mock methods - replace with your actual data fetching logic
-    private TwelveCandleBar fetchFiveMinuteCandle(String symbol) {
-        return stockDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
+    private TwelveCandleBar fetchFiveMinuteCandle(String symbol, String date) {
+        return stockDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN, date);
     }
 
-    private TwelveCandleBar fetchOneMinuteCandle(String symbol) {
-        return stockDataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN);
+    private TwelveCandleBar fetchOneMinuteCandle(String symbol, String date) {
+        return stockDataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN, date);
     }
 
     // Public methods for monitoring and control

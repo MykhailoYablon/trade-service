@@ -46,7 +46,7 @@ public class TwelveDataClient implements StockDataClient {
     }
 
     @Override
-    public TwelveCandleBar quoteWithInterval(String symbol, TimeFrame timeFrame) {
+    public TwelveCandleBar quoteWithInterval(String symbol, TimeFrame timeFrame, String date) {
         log.info("Fetching candle for symbol - {} with timeframe - {}", symbol, timeFrame);
         return restClient.get()
                 .uri(TWELVE_QUOTE.url() + "?apikey=" + token

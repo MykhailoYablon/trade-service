@@ -9,10 +9,10 @@ import com.example.tradeservice.strategy.model.OpeningRange;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,7 +58,8 @@ public class OpeningRangeBreakoutService {
         }
 
         try {
-            TwelveCandleBar fiveMinBar = fetchFiveMinuteCandle(SYMBOL);
+            String date = LocalDate.now().toString();
+            TwelveCandleBar fiveMinBar = fetchFiveMinuteCandle(SYMBOL, date);
             if (fiveMinBar != null) {
                 fiveMinuteBars.add(fiveMinBar);
                 log.info("Collected 5min bar {}/{}: High={}, Low={}, Close={}",
@@ -82,7 +83,8 @@ public class OpeningRangeBreakoutService {
                 currentState == TradingState.MONITORING_FOR_RETEST) {
 
             try {
-                TwelveCandleBar oneMinBar = fetchOneMinuteCandle(SYMBOL);
+                String date = LocalDate.now().toString();
+                TwelveCandleBar oneMinBar = fetchOneMinuteCandle(SYMBOL, date);
                 if (oneMinBar != null) {
 
                     if (currentState == TradingState.MONITORING_FOR_BREAKOUT) {
@@ -254,18 +256,18 @@ public class OpeningRangeBreakoutService {
     }
 
     // Mock methods - replace with your actual data fetching logic
-    private TwelveCandleBar fetchFiveMinuteCandle(String symbol) {
+    private TwelveCandleBar fetchFiveMinuteCandle(String symbol, String date) {
         // TODO: Implement your actual API call to fetch 5-minute candle
         // This is a mock implementation
-        return twelveDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN);
+        return twelveDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN, "date");
 //        return createMockCandle();
     }
 
-    private TwelveCandleBar fetchOneMinuteCandle(String symbol) {
+    private TwelveCandleBar fetchOneMinuteCandle(String symbol, String date) {
         // TODO: Implement your actual API call to fetch 1-minute candle
         // This is a mock implementation
 //        return createMockCandle();
-        return twelveDataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN);
+        return twelveDataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN, date);
     }
 
     private CandleBar createMockCandle() {
