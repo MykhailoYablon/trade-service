@@ -187,7 +187,7 @@ public class OpeningRangeBreakoutService {
         currentState = TradingState.MONITORING_FOR_RETEST;
         retestStartTime = LocalDateTime.now();
 
-        String logFileName = createLogFileName("OpeningBreakRange-");
+        String logFileName = createLogFileName("OpeningBreakRange-", LocalDateTime.now().toString());
 
         // Write some sample lines to the log file
         writeToLog(logFileName, String.format("BREAKOUT %s with price - %s and high - %s", breakoutBar.getSymbol(),

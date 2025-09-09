@@ -8,6 +8,7 @@ import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.service.TradeDataService;
 import com.example.tradeservice.service.impl.YearlyHistoricalDataService;
 import com.example.tradeservice.strategy.CsvStockDataClient;
+import com.example.tradeservice.strategy.RetestStrategy;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationListener;
@@ -18,9 +19,11 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
 import java.time.LocalDate;
-import java.util.Collections;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static com.example.tradeservice.service.impl.YearlyHistoricalDataService.isNonTradingDay;
 
@@ -36,6 +39,7 @@ public class TradeController {
     private final FinnhubClient finnhubClient;
     private final CsvStockDataClient dataClient;
     private final YearlyHistoricalDataService historicalDataService;
+    private final RetestStrategy retestStrategy;
 
     // WebSocket subscription management
     @PostMapping("/subscribe/{symbol}")
@@ -134,24 +138,42 @@ public class TradeController {
     }
 
     @GetMapping("/retest")
-    public List<StockResponse.Value> retestDay(@RequestParam String symbol, @RequestParam String date) {
+    public void retestDay(@RequestParam String symbol) throws InterruptedException {
+// Define the year
+        int year = 2025;
 
-        if (Boolean.TRUE.equals(isNonTradingDay(LocalDate.parse(date)))) {
-            return Collections.emptyList();
+        // Create formatter for the desired format
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        // Create list to store all date strings
+        List<String> dateStrings = new ArrayList<>();
+
+        // Start from January 1st
+        LocalDate date = LocalDate.of(year, 1, 1);
+        LocalDate endOfYear = LocalDate.of(year, 9, 5);
+
+
+        // Loop through each day of the year
+        while (!date.isAfter(endOfYear)) {
+            String dateString = date.format(formatter);
+
+            if (Boolean.TRUE.equals(isNonTradingDay(date))) {
+                date = date.plusDays(1);
+            } else {
+                dateStrings.add(dateString);
+                date = date.plusDays(1);
+            }
         }
 
-        dataClient.initializeCsvForDay(symbol, date);
 
-//        TwelveCandleBar twelveCandleBar = dataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN, date);
-//        TwelveCandleBar twelveCandleBar2 = dataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN, date);
-//        TwelveCandleBar twelveCandleBar3 = dataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN, date);
-//        TwelveCandleBar twelveCandleBar1 = dataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN, date);
-//        TwelveCandleBar twelveCandleBar12 = dataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN, date);
+        List<CompletableFuture<Void>> futures = dateStrings.stream()
+                .map(day -> retestStrategy.startStrategy(symbol, day))
+                .toList();
+        if (!futures.isEmpty()) {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .thenRun(() -> log.debug("Completed monitoring cycle for active symbols"));
+        }
 
-        //start scheduled method
-
-
-        return null;
     }
 
     @GetMapping("/csv")

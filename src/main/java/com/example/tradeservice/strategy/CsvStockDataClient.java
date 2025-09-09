@@ -51,6 +51,8 @@ public class CsvStockDataClient implements StockDataClient {
 
         oneMinData.forEach(record -> storeInRedis(record, TimeFrame.ONE_MIN, date));
 
+        log.info("Initialized csv records for day - {}", date);
+
     }
 
     @Override

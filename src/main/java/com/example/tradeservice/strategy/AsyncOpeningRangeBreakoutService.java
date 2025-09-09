@@ -14,7 +14,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +30,7 @@ import static com.example.tradeservice.strategy.StrategyService.writeToLog;
 public class AsyncOpeningRangeBreakoutService {
 
     // Configuration
-    private static final List<String> SYMBOLS = List.of("MSFT", "GOOGL", "AMZN");
+    private static final List<String> SYMBOLS = List.of("AMZN");
     private static final int OPENING_RANGE_MINUTES = 15; // 9:30-9:45
     private static final int BREAKOUT_CONFIRMATION_BARS = 2;
     private static final BigDecimal RETEST_BUFFER = new BigDecimal("0.02");
@@ -43,12 +42,12 @@ public class AsyncOpeningRangeBreakoutService {
     @Autowired
     private CsvStockDataClient stockDataClient;
 
-    @Scheduled(cron = "0 42-57/5 11 * * MON-FRI", zone = "GMT+3") // Every 5 minutes from 9:30-9:44
+    @Scheduled(cron = "0 44-59/5 10 * * MON-FRI", zone = "GMT+3") // Every 5 minutes from 9:30-9:44
     public void collectOpeningRangeDataForAllSymbols() {
         log.info("Starting opening range data collection for all symbols");
-
+        String date = "2025-09-04";
         List<CompletableFuture<Void>> futures = SYMBOLS.stream()
-                .map(this::collectOpeningRangeDataAsync)
+                .map(symbol -> this.collectOpeningRangeDataAsync(symbol, date))
                 .toList();
 
         // Wait for all symbols to complete
@@ -60,7 +59,7 @@ public class AsyncOpeningRangeBreakoutService {
     public void monitorAllSymbolsForBreakoutAndRetest() {
         List<CompletableFuture<Void>> futures = SYMBOLS.stream()
                 .filter(this::shouldMonitorSymbol)
-                .map(this::monitorSymbolAsync)
+                .map(e -> this.monitorSymbolAsync(e, "2025-09-04"))
                 .toList();
 
         if (!futures.isEmpty()) {
@@ -70,25 +69,24 @@ public class AsyncOpeningRangeBreakoutService {
     }
 
     @Async
-    public CompletableFuture<Void> collectOpeningRangeDataAsync(String symbol) {
+    public CompletableFuture<Void> collectOpeningRangeDataAsync(String symbol, String date) {
         try {
-            SymbolTradingState state = getOrCreateSymbolState(symbol);
-
+            SymbolTradingState state = getOrCreateSymbolState(symbol + date);
+            state.setTestDate(date);
             if (state.getCurrentState() != TradingState.COLLECTING_OPENING_RANGE) {
                 initializeSymbolForNewTradingDay(symbol, state);
             }
-            String date = "2025-09-04";
 
             TwelveCandleBar fiveMinBar = fetchFiveMinuteCandle(symbol, date);
             if (fiveMinBar != null) {
                 state.getFiveMinuteBars().add(fiveMinBar);
 
                 log.info("[{}] Collected 5min bar {}/{}: High={}, Low={}, Close={}",
-                        symbol, state.getFiveMinuteBars().size(), OPENING_RANGE_MINUTES/5,
+                        symbol, state.getFiveMinuteBars().size(), OPENING_RANGE_MINUTES / 5,
                         fiveMinBar.getHigh(), fiveMinBar.getLow(), fiveMinBar.getClose());
 
                 // Check if we've collected enough bars for opening range
-                if (state.getFiveMinuteBars().size() >= OPENING_RANGE_MINUTES/5) {
+                if (state.getFiveMinuteBars().size() >= OPENING_RANGE_MINUTES / 5) {
                     calculateOpeningRange(symbol, state);
                     transitionToBreakoutMonitoring(symbol, state);
                 }
@@ -101,12 +99,11 @@ public class AsyncOpeningRangeBreakoutService {
     }
 
     @Async
-    public CompletableFuture<Void> monitorSymbolAsync(String symbol) {
+    public CompletableFuture<Void> monitorSymbolAsync(String symbol, String date) {
         try {
-            SymbolTradingState state = symbolStates.get(symbol);
+            SymbolTradingState state = symbolStates.get(symbol + date);
             if (state == null) return CompletableFuture.completedFuture(null);
 
-            String date = "2025-09-04";
 
             TwelveCandleBar oneMinBar = fetchOneMinuteCandle(symbol, date);
             if (oneMinBar != null) {
@@ -127,7 +124,7 @@ public class AsyncOpeningRangeBreakoutService {
         return CompletableFuture.completedFuture(null);
     }
 
-    private boolean shouldMonitorSymbol(String symbol) {
+    public boolean shouldMonitorSymbol(String symbol) {
         SymbolTradingState state = symbolStates.get(symbol);
         if (state == null) return false;
 
@@ -186,10 +183,12 @@ public class AsyncOpeningRangeBreakoutService {
         OpeningRange openingRange = state.getOpeningRange();
 
         // Check for upward breakout
-        if (new BigDecimal(oneMinBar.getClose()).compareTo(openingRange.high()) > 0) {
+        String close = oneMinBar.getClose();
+        BigDecimal high = openingRange.high();
+        if (new BigDecimal(close).compareTo(high) > 0) {
             state.getOneMinuteBreakoutBars().add(oneMinBar);
             log.info("[{}] Potential breakout bar added: Close={} > Opening High={}",
-                    symbol, oneMinBar.getClose(), openingRange.high());
+                    symbol, close, high);
 
             // Check if we have enough confirmation bars
             if (state.getOneMinuteBreakoutBars().size() >= BREAKOUT_CONFIRMATION_BARS) {
@@ -199,6 +198,7 @@ public class AsyncOpeningRangeBreakoutService {
             }
         } else {
             // Reset if price closes back below opening high
+            log.info("Candle - {}, Close - {}, High - {}", oneMinBar.getDatetime(), close, high);
             if (!state.getOneMinuteBreakoutBars().isEmpty()) {
                 log.info("[{}] Breakout attempt failed, resetting confirmation bars", symbol);
                 state.getOneMinuteBreakoutBars().clear();
@@ -224,10 +224,12 @@ public class AsyncOpeningRangeBreakoutService {
         state.setCurrentState(TradingState.MONITORING_FOR_RETEST);
         state.setRetestStartTime(LocalDateTime.now());
 
-        String logFileName = createLogFileName("OpeningBreakRange-");
+        String logFileName = createLogFileName("OpeningBreakRange-", state.testDate);
 
         // Write some sample lines to the log file
-        writeToLog(logFileName, String.format("BREAKOUT %s with price - %s and high - %s", symbol,
+        writeToLog(logFileName, String.format("TESTDATE - %s;BREAKOUT %s with price - %s and high - %s",
+                state.testDate,
+                symbol,
                 breakoutBar.getClose(), breakoutData.breakoutHigh()));
 
         log.info("[{}] BREAKOUT CONFIRMED! Price: {}, Time: {}, Opening High: {}",
@@ -268,7 +270,7 @@ public class AsyncOpeningRangeBreakoutService {
                 symbol, suggestedEntry, suggestedStop, riskAmount);
 
         // TODO: Implement your buy logic and risk management here
-         processEntryAsync(symbol, suggestedEntry, suggestedStop, riskAmount);
+        processEntryAsync(symbol, suggestedEntry, suggestedStop, riskAmount, state.testDate);
 
         state.setCurrentState(TradingState.SETUP_COMPLETE);
     }
@@ -298,13 +300,13 @@ public class AsyncOpeningRangeBreakoutService {
     // Async helper method for order processing
     @Async
     public CompletableFuture<Void> processEntryAsync(String symbol, BigDecimal entryPrice,
-                                                     BigDecimal stopPrice, BigDecimal riskAmount) {
+                                                     BigDecimal stopPrice, BigDecimal riskAmount, String testDate) {
         try {
             // TODO: Implement your actual order placement logic here
             log.info("[{}] Processing entry order - Entry: {}, Stop: {}, Risk: {}",
                     symbol, entryPrice, stopPrice, riskAmount);
 
-            String logFileName = createLogFileName("Retest-");
+            String logFileName = createLogFileName("Retest-", testDate);
 
             // Write some sample lines to the log file
             writeToLog(logFileName, String.format("RETEST %s with entry price - %s and stop loss price - %s", symbol,
@@ -331,50 +333,6 @@ public class AsyncOpeningRangeBreakoutService {
         return stockDataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN, date);
     }
 
-    // Public methods for monitoring and control
-    public void addSymbol(String symbol) {
-        if (!SYMBOLS.contains(symbol)) {
-            log.warn("Symbol {} not in configured symbol list", symbol);
-            return;
-        }
-
-        SymbolTradingState state = getOrCreateSymbolState(symbol);
-        log.info("[{}] Symbol added for monitoring", symbol);
-    }
-
-    public void removeSymbol(String symbol) {
-        symbolStates.remove(symbol);
-        log.info("[{}] Symbol removed from monitoring", symbol);
-    }
-
-    public TradingState getSymbolState(String symbol) {
-        SymbolTradingState state = symbolStates.get(symbol);
-        return state != null ? state.getCurrentState() : null;
-    }
-
-    public OpeningRange getSymbolOpeningRange(String symbol) {
-        SymbolTradingState state = symbolStates.get(symbol);
-        return state != null ? state.getOpeningRange() : null;
-    }
-
-    public BreakoutData getSymbolBreakoutData(String symbol) {
-        SymbolTradingState state = symbolStates.get(symbol);
-        return state != null ? state.getBreakoutData() : null;
-    }
-
-    public List<String> getActiveSymbols() {
-        return symbolStates.entrySet().stream()
-                .filter(entry -> entry.getValue().getCurrentState() != TradingState.TIMEOUT &&
-                        entry.getValue().getCurrentState() != TradingState.SETUP_COMPLETE)
-                .map(Map.Entry::getKey)
-                .toList();
-    }
-
-    public void resetAllSymbols() {
-        symbolStates.clear();
-        log.info("All symbol states reset");
-    }
-
     // Helper class to manage per-symbol state
     @Getter
     private static class SymbolTradingState {
@@ -394,6 +352,9 @@ public class AsyncOpeningRangeBreakoutService {
         @Setter
         private LocalDateTime retestStartTime;
 
+        @Setter
+        private String testDate;
+
         public void reset() {
             currentState = TradingState.WAITING_FOR_MARKET_OPEN;
             openingRange = null;
@@ -403,6 +364,7 @@ public class AsyncOpeningRangeBreakoutService {
             marketOpenTime = null;
             breakoutStartTime = null;
             retestStartTime = null;
+            testDate = null;
         }
 
     }

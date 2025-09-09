@@ -24,10 +24,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -83,7 +80,7 @@ public class StrategyService {
         if (price > high) {
             log.info("BREAKOUT {} with price - {} and high - {}", symbol, price, high);
 
-            String logFileName = createLogFileName("OpeningBreakRange-");
+            String logFileName = createLogFileName("OpeningBreakRange-", LocalDateTime.now().toString());
 
             // Write some sample lines to the log file
             writeToLog(logFileName, String.format("BREAKOUT %s with price - %s and high - %s\"", symbol, price, high));
@@ -177,7 +174,7 @@ public class StrategyService {
                 if (closePrice > high) {
                     // Break happened
                     // Write some sample lines to the log file
-                    String logFileName = createLogFileName("OpeningBreakRange-");
+                    String logFileName = createLogFileName("OpeningBreakRange-", LocalDateTime.now().toString());
                     writeToLog(logFileName, String.format("BREAKOUT %s with close price - %s and high - %s\"",
                             symbol, closePrice, high));
                     isBreak = true;
@@ -186,7 +183,7 @@ public class StrategyService {
                 //RETEST BREAK
                 if (closePrice <= high) {
                     log.info("Retest price happened");
-                    String logFileName = createLogFileName("RetestBreakRange-");
+                    String logFileName = createLogFileName("RetestBreakRange-", LocalDateTime.now().toString());
                     writeToLog(logFileName, String.format("RETEST BREAKOUT %s with close price - %s and high - %s\"",
                             symbol, closePrice, high));
                     isRetest = true;
@@ -205,10 +202,10 @@ public class StrategyService {
      * Creates a log file name with current date
      * Format: OpeningBreakRange-YYYY-MM-DD.log
      */
-    public static String createLogFileName(String prefix) {
+    public static String createLogFileName(String prefix, String date) {
         LocalDate currentDate = LocalDate.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        String dateString = currentDate.format(formatter);
+        String dateString = Objects.nonNull(date) ? date : currentDate.format(formatter);
         return prefix + dateString + ".log";
     }
 
