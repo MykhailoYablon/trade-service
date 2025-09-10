@@ -43,7 +43,7 @@ public class YearlyHistoricalDataService {
                 LocalDate firstDayOfMonth = LocalDate.of(year, month, 1);
                 LocalDate lastDayOfMonth = firstDayOfMonth.withDayOfMonth(firstDayOfMonth.lengthOfMonth());
 
-                List<StockResponse.Value> monthData = new ArrayList<>();
+                List<StockResponse.Value> monthData;
                 // API call for entire month (9:30 AM to 4:00 PM)
 
                 if (TimeFrame.FIVE_MIN.equals(timeFrame)) {

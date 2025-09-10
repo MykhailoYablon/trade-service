@@ -18,6 +18,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -30,6 +31,7 @@ public class CsvStockDataClient implements StockDataClient {
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
+
     public void initializeCsvForDay(String symbol, String date) {
         //clear redis records
         String keyFiveMin = "candles:" + symbol + ":" + TimeFrame.FIVE_MIN + ":" + date;
@@ -72,7 +74,6 @@ public class CsvStockDataClient implements StockDataClient {
             CsvToBean<TwelveCandleBar> csvToBean = new CsvToBeanBuilder<TwelveCandleBar>(reader)
                     .withType(TwelveCandleBar.class)
                     .withIgnoreLeadingWhiteSpace(true)
-//                    .withFilter(getDateFilter(LocalDateTime.now().minusDays(10)))
                     .build();
 
             List<TwelveCandleBar> data = csvToBean.parse();
@@ -82,7 +83,8 @@ public class CsvStockDataClient implements StockDataClient {
             return data;
 
         } catch (Exception e) {
-            throw new RuntimeException("Error reading CSV file: " + fileName, e);
+            log.info("No such file {}", fileName);
+            return Collections.emptyList();
         }
     }
 

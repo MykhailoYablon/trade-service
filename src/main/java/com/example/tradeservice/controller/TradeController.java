@@ -142,36 +142,52 @@ public class TradeController {
 // Define the year
         int year = 2025;
 
-        // Create formatter for the desired format
+// Create formatter for the desired format
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-        // Create list to store all date strings
-        List<String> dateStrings = new ArrayList<>();
+// Start from January 1st
+        LocalDate startDate = LocalDate.of(year, 1, 1);
+        LocalDate endDate = LocalDate.of(year, 9, 5);
 
-        // Start from January 1st
-        LocalDate date = LocalDate.of(year, 1, 1);
-        LocalDate endOfYear = LocalDate.of(year, 9, 5);
+// Process each month separately
+        LocalDate currentMonth = startDate.withDayOfMonth(1);
 
+        while (!currentMonth.isAfter(endDate)) {
+            List<String> monthlyDateStrings = new ArrayList<>();
 
-        // Loop through each day of the year
-        while (!date.isAfter(endOfYear)) {
-            String dateString = date.format(formatter);
+            // Get the last day of current month
+            LocalDate lastDayOfMonth = currentMonth.withDayOfMonth(currentMonth.lengthOfMonth());
+            LocalDate monthEndDate = lastDayOfMonth.isBefore(endDate) ? lastDayOfMonth : endDate;
 
-            if (Boolean.TRUE.equals(isNonTradingDay(date))) {
-                date = date.plusDays(1);
-            } else {
-                dateStrings.add(dateString);
+            // Collect all trading days in this month
+            LocalDate date = currentMonth;
+            while (!date.isAfter(monthEndDate)) {
+                if (!Boolean.TRUE.equals(isNonTradingDay(date))) {
+                    monthlyDateStrings.add(date.format(formatter));
+                }
                 date = date.plusDays(1);
             }
-        }
 
+            // Process this month's dates
+            if (!monthlyDateStrings.isEmpty()) {
+                log.info("Processing {} trading days for {}",
+                        monthlyDateStrings.size(),
+                        currentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")));
 
-        List<CompletableFuture<Void>> futures = dateStrings.stream()
-                .map(day -> retestStrategy.startStrategy(symbol, day))
-                .toList();
-        if (!futures.isEmpty()) {
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .thenRun(() -> log.debug("Completed monitoring cycle for active symbols"));
+                List<CompletableFuture<Void>> monthlyFutures = monthlyDateStrings.stream()
+                        .map(day -> retestStrategy.startStrategy(symbol, day))
+                        .toList();
+
+                // Wait for this month to complete before moving to next month
+                LocalDate finalCurrentMonth = currentMonth;
+                CompletableFuture.allOf(monthlyFutures.toArray(new CompletableFuture[0]))
+                        .thenRun(() -> log.debug("Completed monitoring for {}",
+                                finalCurrentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy"))))
+                        .join(); // Wait for completion before proceeding to next month
+            }
+
+            // Move to next month
+            currentMonth = currentMonth.plusMonths(1);
         }
 
     }
