@@ -139,17 +139,17 @@ public class TradeController {
 
     @GetMapping("/retest")
     public void retestDay(@RequestParam String symbol) throws InterruptedException {
-// Define the year
+        // Define the year
         int year = 2025;
 
-// Create formatter for the desired format
+        // Create formatter for the desired format
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-// Start from January 1st
+        // Start from January 1st
         LocalDate startDate = LocalDate.of(year, 1, 1);
         LocalDate endDate = LocalDate.of(year, 9, 5);
 
-// Process each month separately
+        // Process each month separately
         LocalDate currentMonth = startDate.withDayOfMonth(1);
 
         while (!currentMonth.isAfter(endDate)) {
@@ -193,7 +193,8 @@ public class TradeController {
     }
 
     @GetMapping("/csv")
-    public void generateCsv(@RequestParam String symbol, @RequestParam TimeFrame timeFrame) {
-        historicalDataService.collectYearlyDataEfficiently(symbol, timeFrame, 2025);
+    public void generateCsv(@RequestParam String symbol) {
+        historicalDataService.collectYearlyDataEfficiently(symbol, TimeFrame.FIVE_MIN, 2025);
+        historicalDataService.collectYearlyDataEfficiently(symbol, TimeFrame.ONE_MIN, 2025);
     }
 }

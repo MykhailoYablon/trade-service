@@ -2,10 +2,14 @@ package com.example.tradeservice.strategy;
 
 import com.example.tradeservice.model.TwelveCandleBar;
 import com.example.tradeservice.model.enums.TimeFrame;
+import com.example.tradeservice.service.OrderTracker;
+import com.example.tradeservice.service.impl.PositionTracker;
 import com.example.tradeservice.strategy.enums.TradingState;
 import com.example.tradeservice.strategy.model.BreakoutData;
 import com.example.tradeservice.strategy.model.OpeningRange;
 import com.example.tradeservice.strategy.model.SymbolTradingState;
+import com.ib.client.Contract;
+import com.ib.client.Types;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
@@ -19,7 +23,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import static com.example.tradeservice.strategy.utils.FileUtils.createLogFileName;
 import static com.example.tradeservice.strategy.utils.FileUtils.writeToLog;
 
 @Service
@@ -36,6 +39,11 @@ public class AsyncOpeningRangeBreakoutService {
     private final ConcurrentMap<String, SymbolTradingState> symbolStates = new ConcurrentHashMap<>();
     @Autowired
     private CsvStockDataClient stockDataClient;
+
+    @Autowired
+    private OrderTracker orderManagerService;
+    @Autowired
+    private PositionTracker positionTracker;
 
     @Scheduled(cron = "0 36-50/5 16 * * MON-FRI", zone = "GMT+3") // Every 5 minutes from 9:30-9:44
     public void collectOpeningRangeDataForAllSymbols() {
@@ -291,8 +299,6 @@ public class AsyncOpeningRangeBreakoutService {
             log.info("[{}] Processing entry order - Entry: {}, Stop: {}, Risk: {}",
                     symbol, entryPrice, stopPrice, riskAmount);
 
-            String logFileName = createLogFileName("Retest-", testDate);
-
             // Write some sample lines to the log file
             writeToLog(symbol + "/break/" + testDate + ".log",
                     String.format("RETEST %s with entry price - %s and stop loss price - %s", symbol,
@@ -300,7 +306,11 @@ public class AsyncOpeningRangeBreakoutService {
 
             // Lets say 100 shares
             // calculatePositionSize(riskAmount);
-            var positionSize = 100;
+
+            Contract contract = positionTracker.getPositionBySymbol(symbol).getContract();
+
+            orderManagerService.placeMarketOrder(contract, Types.Action.BUY, 10);
+
 
             log.info("[{}] Entry order processed successfully", symbol);
         } catch (Exception e) {

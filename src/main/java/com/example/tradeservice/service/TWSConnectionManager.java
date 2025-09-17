@@ -125,7 +125,7 @@ public class TWSConnectionManager implements EWrapper {
 
             client.getTwsConnectionTime();
 
-            orderTracker.setClient(client);
+            orderTracker.setIbClient(client);
 
             //test subscribe to market data
 

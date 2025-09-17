@@ -4,12 +4,15 @@ import com.example.tradeservice.model.OrderModel;
 import com.ib.client.Contract;
 import com.ib.client.Order;
 import com.ib.client.OrderState;
+import com.ib.client.Types;
 
 import java.math.BigDecimal;
 import java.util.Collection;
 
 public interface OrderTracker {
     void placeLimitOrder(Contract contract, String action, BigDecimal quantity, double price);
+
+    void placeMarketOrder(Contract contract, Types.Action action, double quantity);
 
     void setOrder(Contract contract, Order order, OrderState orderState);
 

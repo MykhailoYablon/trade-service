@@ -25,9 +25,9 @@ public class PositionController {
         return positionService.getAllPositions();
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Position> getPositionById(@PathVariable int conid) {
-        return positionService.getPositionById(conid)
+    @GetMapping()
+    public ResponseEntity<Position> getPositionBySymbol(@RequestParam String symbol) {
+        return positionService.getPositionBySymbol(symbol)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }

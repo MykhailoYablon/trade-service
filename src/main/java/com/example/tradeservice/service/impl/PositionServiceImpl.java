@@ -35,8 +35,8 @@ public class PositionServiceImpl implements PositionService {
     }
 
     @Override
-    public Optional<Position> getPositionById(int conid) {
-        return Optional.of(positionMapper.convertToTrade(positionTracker.getPositionByConid(conid)));
+    public Optional<Position> getPositionBySymbol(String symbol) {
+        return Optional.of(positionMapper.convertToTrade(positionTracker.getPositionBySymbol(symbol)));
     }
 
     @Transactional

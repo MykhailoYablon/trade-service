@@ -37,18 +37,16 @@ public class RetestStrategy {
 
     private CompletableFuture<Void> collectOpeningRangeDataSequentially(String symbol, String date, int count) {
         if (count <= 0) {
-            log.info("Test");
             return CompletableFuture.completedFuture(null);
         }
-        log.info("collectOpeningRangeDataAsync");
         return orbService.collectOpeningRangeDataAsync(symbol, date)
-//                .thenCompose(v -> CompletableFuture.runAsync(() -> {
-//                    try {
-//                        Thread.sleep(100);
-//                    } catch (InterruptedException e) {
-//                        Thread.currentThread().interrupt();
-//                    }
-//                }))
+                .thenCompose(v -> CompletableFuture.runAsync(() -> {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }))
                 .thenCompose(v -> collectOpeningRangeDataSequentially(symbol, date, count - 1));
     }
 
@@ -58,13 +56,13 @@ public class RetestStrategy {
         }
 
         return orbService.monitorSymbolAsync(symbol, date)
-//                .thenCompose(v -> CompletableFuture.runAsync(() -> {
-//                    try {
-//                        Thread.sleep(100);
-//                    } catch (InterruptedException e) {
-//                        Thread.currentThread().interrupt();
-//                    }
-//                }))
+                .thenCompose(v -> CompletableFuture.runAsync(() -> {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }))
                 .thenCompose(v -> monitorSymbolLoop(symbol, date, maxIterations - 1));
     }
 }

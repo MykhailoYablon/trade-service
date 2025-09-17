@@ -1,6 +1,5 @@
 package com.example.tradeservice.controller;
 
-import com.example.tradeservice.model.OrderHolder;
 import com.example.tradeservice.model.OrderModel;
 import com.example.tradeservice.service.OrderTracker;
 import com.example.tradeservice.service.impl.PositionTracker;
@@ -21,9 +20,9 @@ public class OrderController {
     OrderTracker orderTracker;
 
     @PostMapping
-    void placeOrder(@RequestParam String conid, @RequestParam String action, @RequestParam BigDecimal quantity,
+    void placeOrder(@RequestParam String symbol, @RequestParam String action, @RequestParam BigDecimal quantity,
                     @RequestParam double price) {
-        Contract contract = positionTracker.getPositionByConid(Integer.valueOf(conid)).getContract();
+        Contract contract = positionTracker.getPositionBySymbol(symbol).getContract();
         orderTracker.placeLimitOrder(contract, action, quantity, price);
     }
 
