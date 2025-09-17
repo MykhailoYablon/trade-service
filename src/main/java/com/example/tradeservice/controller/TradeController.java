@@ -1,12 +1,14 @@
 package com.example.tradeservice.controller;
 
 import com.example.tradeservice.configuration.FinnhubClient;
-import com.example.tradeservice.model.enums.TimeFrame;
-import com.example.tradeservice.configuration.TwelveDataClient;
 import com.example.tradeservice.handler.StockTradeWebSocketHandler;
 import com.example.tradeservice.handler.TradeUpdatedEvent;
 import com.example.tradeservice.model.*;
+import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.service.TradeDataService;
+import com.example.tradeservice.service.impl.YearlyHistoricalDataService;
+import com.example.tradeservice.strategy.CsvStockDataClient;
+import com.example.tradeservice.strategy.RetestStrategy;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationListener;
@@ -16,8 +18,14 @@ import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
+import static com.example.tradeservice.service.impl.YearlyHistoricalDataService.isNonTradingDay;
 
 @Slf4j
 @CrossOrigin(origins = "*")
@@ -29,7 +37,9 @@ public class TradeController {
     private final TradeDataService tradeDataService;
     private final StockTradeWebSocketHandler webSocketHandler;
     private final FinnhubClient finnhubClient;
-    private final TwelveDataClient twelveDataClient;
+    private final CsvStockDataClient dataClient;
+    private final YearlyHistoricalDataService historicalDataService;
+    private final RetestStrategy retestStrategy;
 
     // WebSocket subscription management
     @PostMapping("/subscribe/{symbol}")
@@ -127,8 +137,64 @@ public class TradeController {
         return finnhubClient.search(symbol);
     }
 
-    @GetMapping("/time-series")
-    public StockResponse getTimeSeries(@RequestParam String symbol) {
-        return twelveDataClient.timeSeries(symbol, TimeFrame.FIFTEEN_MIN);
+    @GetMapping("/retest")
+    public void retestDay(@RequestParam String symbol) throws InterruptedException {
+        // Define the year
+        int year = 2025;
+
+        // Create formatter for the desired format
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        // Start from January 1st
+        LocalDate startDate = LocalDate.of(year, 1, 1);
+        LocalDate endDate = LocalDate.of(year, 9, 5);
+
+        // Process each month separately
+        LocalDate currentMonth = startDate.withDayOfMonth(1);
+
+        while (!currentMonth.isAfter(endDate)) {
+            List<String> monthlyDateStrings = new ArrayList<>();
+
+            // Get the last day of current month
+            LocalDate lastDayOfMonth = currentMonth.withDayOfMonth(currentMonth.lengthOfMonth());
+            LocalDate monthEndDate = lastDayOfMonth.isBefore(endDate) ? lastDayOfMonth : endDate;
+
+            // Collect all trading days in this month
+            LocalDate date = currentMonth;
+            while (!date.isAfter(monthEndDate)) {
+                if (!Boolean.TRUE.equals(isNonTradingDay(date))) {
+                    monthlyDateStrings.add(date.format(formatter));
+                }
+                date = date.plusDays(1);
+            }
+
+            // Process this month's dates
+            if (!monthlyDateStrings.isEmpty()) {
+                log.info("Processing {} trading days for {}",
+                        monthlyDateStrings.size(),
+                        currentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")));
+
+                List<CompletableFuture<Void>> monthlyFutures = monthlyDateStrings.stream()
+                        .map(day -> retestStrategy.startStrategy(symbol, day))
+                        .toList();
+
+                // Wait for this month to complete before moving to next month
+                LocalDate finalCurrentMonth = currentMonth;
+                CompletableFuture.allOf(monthlyFutures.toArray(new CompletableFuture[0]))
+                        .thenRun(() -> log.debug("Completed monitoring for {}",
+                                finalCurrentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy"))))
+                        .join(); // Wait for completion before proceeding to next month
+            }
+
+            // Move to next month
+            currentMonth = currentMonth.plusMonths(1);
+        }
+
+    }
+
+    @GetMapping("/csv")
+    public void generateCsv(@RequestParam String symbol) {
+        historicalDataService.collectYearlyDataEfficiently(symbol, TimeFrame.FIVE_MIN, 2025);
+        historicalDataService.collectYearlyDataEfficiently(symbol, TimeFrame.ONE_MIN, 2025);
     }
 }

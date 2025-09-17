@@ -57,15 +57,15 @@ public class RedisConfiguration {
     }
 
     @Bean
-    public RedisTemplate<String, TradeData> redisTemplate(RedisConnectionFactory connectionFactory, ObjectMapper mapper) {
-        RedisTemplate<String, TradeData> template = new RedisTemplate<>();
+    public RedisTemplate<?, ?> redisTemplate(RedisConnectionFactory connectionFactory, ObjectMapper mapper) {
+        RedisTemplate<?, ?> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        Jackson2JsonRedisSerializer<TradeData> serializer = new Jackson2JsonRedisSerializer<>(mapper, TradeData.class);
-        template.setKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(serializer);
-        template.setHashKeySerializer(new StringRedisSerializer());
-        template.setHashValueSerializer(serializer);
+//        Jackson2JsonRedisSerializer<TradeData> serializer = new Jackson2JsonRedisSerializer<>(mapper, TradeData.class);
+//        template.setKeySerializer(new StringRedisSerializer());
+//        template.setValueSerializer(serializer);
+//        template.setHashKeySerializer(new StringRedisSerializer());
+//        template.setHashValueSerializer(serializer);
 
         template.afterPropertiesSet();
         return template;

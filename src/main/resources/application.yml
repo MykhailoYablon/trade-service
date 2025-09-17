@@ -18,6 +18,8 @@ financial:
 strategy:
   risk: 1
   reward:
+  stop-loss-range:
+  take-profit-range:
 
 # Redis config
   data:

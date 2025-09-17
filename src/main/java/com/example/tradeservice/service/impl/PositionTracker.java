@@ -28,13 +28,13 @@ public class PositionTracker {
     private final PositionRepository positionRepository;
     private final DataRequestRepository dataRequestRepository;
 
-    private Map<Integer, PositionHolder> positions;
+    private Map<String, PositionHolder> positions;
 
     public void addPosition(PositionHolder positionHolder) {
         if(positionHolder.getQuantity().equals(Decimal.ZERO)) {
-            positions.remove(positionHolder.getContract().conid());
+            positions.remove(positionHolder.getContract().symbol());
         } else {
-            positions.put(positionHolder.getContract().conid(), positionHolder);
+            positions.put(positionHolder.getContract().symbol(), positionHolder);
             processPosition(positionHolder.getContract(), positionHolder.getQuantity(), positionHolder.getAvgPrice());
         }
     }
@@ -67,11 +67,11 @@ public class PositionTracker {
     }
 
     public PositionHolder getPositionByContract(Contract contract) {
-        return positions.get(contract.conid());
+        return positions.get(contract.symbol());
     }
 
-    public PositionHolder getPositionByConid(Integer conid) {
-        return positions.get(conid);
+    public PositionHolder getPositionBySymbol(String symbol) {
+        return positions.get(symbol);
     }
 
     // Step 2: Save DataRequest when making historical data request

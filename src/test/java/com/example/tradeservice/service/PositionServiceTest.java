@@ -91,33 +91,33 @@ class PositionServiceTest {
     @Test
     void getPositionById_ShouldReturnPosition_WhenPositionExists() {
         // Given
-        int conid = 12345;
-        when(positionTracker.getPositionByConid(conid)).thenReturn(mockPositionHolder);
+        String symbol = "TSLA";
+        when(positionTracker.getPositionBySymbol(symbol)).thenReturn(mockPositionHolder);
         when(positionMapper.convertToTrade(mockPositionHolder)).thenReturn(mockPosition);
 
         // When
-        Optional<Position> result = positionService.getPositionById(conid);
+        Optional<Position> result = positionService.getPositionBySymbol(symbol);
 
         // Then
         assertTrue(result.isPresent());
         assertEquals(mockPosition, result.get());
-        verify(positionTracker).getPositionByConid(conid);
+        verify(positionTracker).getPositionBySymbol(symbol);
         verify(positionMapper).convertToTrade(mockPositionHolder);
     }
 
     @Test
     void getPositionById_ShouldReturnEmptyOptional_WhenPositionDoesNotExist() {
         // Given
-        int conid = 99999;
-        when(positionTracker.getPositionByConid(conid)).thenReturn(null);
+        String symbol = "TSLA";
+        when(positionTracker.getPositionBySymbol(symbol)).thenReturn(null);
         when(positionMapper.convertToTrade(null)).thenReturn(null);
 
         // When
-        Optional<Position> result = positionService.getPositionById(conid);
+        Optional<Position> result = positionService.getPositionBySymbol(symbol);
 
         // Then
         assertFalse(result.isPresent());
-        verify(positionTracker).getPositionByConid(conid);
+        verify(positionTracker).getPositionBySymbol(symbol);
         verify(positionMapper).convertToTrade(null);
     }
 

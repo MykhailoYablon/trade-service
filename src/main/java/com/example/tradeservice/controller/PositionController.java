@@ -3,7 +3,7 @@ package com.example.tradeservice.controller;
 import com.example.tradeservice.entity.HistoricalData;
 import com.example.tradeservice.entity.Position;
 import com.example.tradeservice.model.enums.TimeFrame;
-import com.example.tradeservice.redis.HistoricalDataRepository;
+import com.example.tradeservice.repository.HistoricalDataRepository;
 import com.example.tradeservice.service.PositionService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -25,9 +25,9 @@ public class PositionController {
         return positionService.getAllPositions();
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Position> getPositionById(@PathVariable int conid) {
-        return positionService.getPositionById(conid)
+    @GetMapping()
+    public ResponseEntity<Position> getPositionBySymbol(@RequestParam String symbol) {
+        return positionService.getPositionBySymbol(symbol)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }

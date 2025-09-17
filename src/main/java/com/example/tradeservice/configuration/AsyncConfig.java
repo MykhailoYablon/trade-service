@@ -2,6 +2,7 @@ package com.example.tradeservice.configuration;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
@@ -9,20 +10,15 @@ import java.util.concurrent.Executor;
 
 @Configuration
 @EnableAsync
-public class AsyncConfig {
+public class AsyncConfig implements AsyncConfigurer {
 
-    /**
-     * Custom thread pool for trading strategy execution
-     */
-    @Bean(name = "tradingTaskExecutor")
-    public Executor tradingTaskExecutor() {
+    @Bean("strategyExecutor")
+    public Executor strategyExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(4); // Number of symbols you typically process
-        executor.setMaxPoolSize(10); // Maximum threads
-        executor.setQueueCapacity(20); // Queue capacity
-        executor.setThreadNamePrefix("Trading-");
-        executor.setWaitForTasksToCompleteOnShutdown(true);
-        executor.setAwaitTerminationSeconds(60);
+        executor.setCorePoolSize(30);
+        executor.setMaxPoolSize(100);
+        executor.setQueueCapacity(500);
+        executor.setThreadNamePrefix("strategy-");
         executor.initialize();
         return executor;
     }

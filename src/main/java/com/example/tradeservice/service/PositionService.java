@@ -8,6 +8,6 @@ import java.util.Optional;
 
 public interface PositionService {
     List<Position> getAllPositions();
-    Optional<Position> getPositionById(int conid);
+    Optional<Position> getPositionBySymbol(String symbol);
     Position createPosition(Position position);
 }

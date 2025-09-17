@@ -1,7 +1,6 @@
 package com.example.tradeservice.service;
 
 import com.example.tradeservice.mapper.OrderMapper;
-import com.example.tradeservice.model.OrderHolder;
 import com.example.tradeservice.model.OrderModel;
 import com.example.tradeservice.service.impl.OrderTrackerImpl;
 import com.ib.client.*;
@@ -36,7 +35,7 @@ class OrderTrackerTest {
     @BeforeEach
     void setUp() {
         // Set up the client
-        orderTracker.setClient(client);
+        orderTracker.setIbClient(client);
 
         // Create mock contract
         mockContract = new Contract();
