@@ -8,7 +8,6 @@ import com.example.tradeservice.model.PositionHolder;
 import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.redis.ContractRepository;
 import com.example.tradeservice.repository.DataRequestRepository;
-import com.example.tradeservice.repository.HistoricalDataRepository;
 import com.example.tradeservice.service.impl.HistoricalDataCsvService;
 import com.example.tradeservice.service.impl.OrderTrackerImpl;
 import com.example.tradeservice.service.impl.PositionTracker;
@@ -18,16 +17,12 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import redis.clients.jedis.exceptions.JedisDataException;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,14 +36,12 @@ import static com.example.tradeservice.service.TimeUtils.parseIbTime;
 public class TWSConnectionManager implements EWrapper {
     private EClientSocket client;
     private final EReaderSignal readerSignal = new EJavaSignal();
-    private EReader reader;
     private PositionTracker positionTracker;
     private OrderTrackerImpl orderTracker;
     private CountDownLatch connectionLatch;
     private final TwsResultHandler twsResultHandler;
     private final AtomicInteger autoIncrement = new AtomicInteger();
     private String managedAccount;
-    private final HistoricalDataRepository historicalDataRepository;
     private final DataRequestRepository dataRequestRepository;
     private final AccountService accountService;
     private final TimeSeriesHandler timeSeriesHandler;
@@ -65,7 +58,6 @@ public class TWSConnectionManager implements EWrapper {
     public TWSConnectionManager(PositionTracker positionTracker,
                                 AccountService accountService,
                                 OrderTrackerImpl orderTracker,
-                                HistoricalDataRepository historicalDataRepository,
                                 ContractRepository contractRepository,
                                 DataRequestRepository dataRequestRepository, TimeSeriesHandler timeSeriesHandler) {
         this.dataRequestRepository = dataRequestRepository;
@@ -76,7 +68,6 @@ public class TWSConnectionManager implements EWrapper {
         this.accountService = accountService;
         this.connectionLatch = new CountDownLatch(1);
         this.twsResultHandler = new TwsResultHandler();
-        this.historicalDataRepository = historicalDataRepository;
         this.contractRepository = contractRepository;
     }
 
@@ -128,7 +119,6 @@ public class TWSConnectionManager implements EWrapper {
             orderTracker.setIbClient(client);
 
             //test subscribe to market data
-
 
 
         } catch (Exception e) {
@@ -418,21 +408,6 @@ public class TWSConnectionManager implements EWrapper {
                 .count(bar.count())
                 .wap(bar.wap().value())
                 .build();
-
-        try {
-
-            StringBuilder fileName = new StringBuilder("historical_data");
-            fileName.append("_").append(symbol);
-            fileName.append("_").append(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")));
-            fileName.append(".").append("csv");
-
-            excelService.exportToCsv(data, fileName.toString());
-
-            historicalDataRepository.save(data);
-        } catch (DataIntegrityViolationException | IOException e) {
-            // Handle duplicate - update existing record
-            log.debug("Duplicate bar data for reqId={}, timestamp={}", reqId, data.getTimestamp());
-        }
 
         log.debug("Historical data saved: reqId={}, timestamp={}, close={}",
                 reqId, data.getTimestamp(), data.getClose());
@@ -801,6 +776,7 @@ public class TWSConnectionManager implements EWrapper {
 
     /**
      * Subscribe to market data stream, returns with the stream id.
+     *
      * @param contract
      * @param tickData if true, we get tick-by-tick data
      */

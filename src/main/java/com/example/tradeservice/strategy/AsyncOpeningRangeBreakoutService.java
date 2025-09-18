@@ -1,5 +1,6 @@
 package com.example.tradeservice.strategy;
 
+import com.example.tradeservice.configuration.TwelveDataClient;
 import com.example.tradeservice.model.TwelveCandleBar;
 import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.service.OrderTracker;
@@ -16,6 +17,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,7 +32,7 @@ import static com.example.tradeservice.strategy.utils.FileUtils.writeToLog;
 public class AsyncOpeningRangeBreakoutService {
 
     // Configuration
-    private static final List<String> SYMBOLS = List.of("AMZN");
+    private static final List<String> SYMBOLS = List.of("GOOG");
     private static final int OPENING_RANGE_MINUTES = 15; // 9:30-9:45
     private static final int BREAKOUT_CONFIRMATION_BARS = 2;
     private static final BigDecimal RETEST_BUFFER = new BigDecimal("0.02");
@@ -38,17 +40,17 @@ public class AsyncOpeningRangeBreakoutService {
     // Thread-safe state tracking for multiple symbols
     private final ConcurrentMap<String, SymbolTradingState> symbolStates = new ConcurrentHashMap<>();
     @Autowired
-    private CsvStockDataClient stockDataClient;
+    private TwelveDataClient stockDataClient;
 
     @Autowired
-    private OrderTracker orderManagerService;
+    private OrderTracker orderTracker;
     @Autowired
     private PositionTracker positionTracker;
 
     @Scheduled(cron = "0 36-50/5 16 * * MON-FRI", zone = "GMT+3") // Every 5 minutes from 9:30-9:44
     public void collectOpeningRangeDataForAllSymbols() {
         log.info("Starting opening range data collection for all symbols");
-        String date = "2025-09-04";
+        String date = "2025-09-17";
         List<CompletableFuture<Void>> futures = SYMBOLS.stream()
                 .map(symbol -> this.collectOpeningRangeDataAsync(symbol, date))
                 .toList();
@@ -62,7 +64,7 @@ public class AsyncOpeningRangeBreakoutService {
     public void monitorAllSymbolsForBreakoutAndRetest() {
         List<CompletableFuture<Void>> futures = SYMBOLS.stream()
                 .filter(this::shouldMonitorSymbol)
-                .map(e -> this.monitorSymbolAsync(e, "2025-09-04"))
+                .map(e -> this.monitorSymbolAsync(e, "2025-09-17"))
                 .toList();
 
         if (!futures.isEmpty()) {
@@ -176,6 +178,7 @@ public class AsyncOpeningRangeBreakoutService {
                 state.getOpeningRange().high().subtract(state.getOpeningRange().low()));
 
         // Write some sample lines to the log file
+        new File("logs/" + symbol).mkdirs();
         writeToLog(symbol + "/" + state.getTestDate() + ".log",
                 String.format("[%s] Opening range calculated - High: %s, Low: %s, Range: %s",
                         symbol, state.getOpeningRange().high(), state.getOpeningRange().low(),
@@ -309,7 +312,7 @@ public class AsyncOpeningRangeBreakoutService {
 
             Contract contract = positionTracker.getPositionBySymbol(symbol).getContract();
 
-            orderManagerService.placeMarketOrder(contract, Types.Action.BUY, 10);
+            orderTracker.placeMarketOrder(contract, Types.Action.BUY, 10);
 
 
             log.info("[{}] Entry order processed successfully", symbol);

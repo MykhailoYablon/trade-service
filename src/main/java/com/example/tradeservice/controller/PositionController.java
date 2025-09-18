@@ -20,12 +20,12 @@ public class PositionController {
     private final PositionService positionService;
     private final HistoricalDataRepository historicalDataRepository;
 
-    @GetMapping
+    @GetMapping("/all")
     public List<Position> getAllPositions() {
         return positionService.getAllPositions();
     }
 
-    @GetMapping()
+    @GetMapping
     public ResponseEntity<Position> getPositionBySymbol(@RequestParam String symbol) {
         return positionService.getPositionBySymbol(symbol)
                 .map(ResponseEntity::ok)

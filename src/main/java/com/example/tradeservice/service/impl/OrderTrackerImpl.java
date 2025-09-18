@@ -48,10 +48,16 @@ public class OrderTrackerImpl implements OrderTracker {
 
     @Override
     public void placeMarketOrder(Contract contract, Types.Action action, double quantity) {
-        int baseOrderId = orderId++;
+        int baseOrderId = ++orderId;
         List<Order> complexBracketOrder = createComplexBracketOrder(
                 baseOrderId
         );
+        // Ensure contract uses SMART routing
+        if (contract.exchange() == null || contract.exchange().isEmpty() ||
+                contract.exchange().equals("NASDAQ")) {
+            contract.exchange("SMART");
+            contract.primaryExch("NASDAQ"); // Set NASDAQ as primary exchange
+        }
 
         // Place orders with IB
         for (int i = 0; i < complexBracketOrder.size(); i++) {

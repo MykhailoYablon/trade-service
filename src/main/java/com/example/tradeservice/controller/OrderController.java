@@ -4,6 +4,7 @@ import com.example.tradeservice.model.OrderModel;
 import com.example.tradeservice.service.OrderTracker;
 import com.example.tradeservice.service.impl.PositionTracker;
 import com.ib.client.Contract;
+import com.ib.client.Types;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,7 +24,8 @@ public class OrderController {
     void placeOrder(@RequestParam String symbol, @RequestParam String action, @RequestParam BigDecimal quantity,
                     @RequestParam double price) {
         Contract contract = positionTracker.getPositionBySymbol(symbol).getContract();
-        orderTracker.placeLimitOrder(contract, action, quantity, price);
+
+        orderTracker.placeMarketOrder(contract, Types.Action.BUY, 10);
     }
 
     @GetMapping
