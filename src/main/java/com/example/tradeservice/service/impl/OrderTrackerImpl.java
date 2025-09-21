@@ -6,6 +6,7 @@ import com.example.tradeservice.model.OrderModel;
 import com.example.tradeservice.service.OrderTracker;
 import com.ib.client.*;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.lang.NonNull;
@@ -15,6 +16,7 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @Scope("singleton")
 public class OrderTrackerImpl implements OrderTracker {
@@ -47,23 +49,20 @@ public class OrderTrackerImpl implements OrderTracker {
     }
 
     @Override
-    public void placeMarketOrder(Contract contract, Types.Action action, double quantity) {
+    public List<Order> placeMarketOrder(Contract contract, Types.Action action, double quantity, BigDecimal entryPrice,
+                                 BigDecimal stopPrice) {
         int baseOrderId = ++orderId;
-        List<Order> complexBracketOrder = createComplexBracketOrder(
-                baseOrderId
-        );
+        List<Order> complexBracketOrder = createComplexBracketOrder(baseOrderId, entryPrice, stopPrice);
         // Ensure contract uses SMART routing
-        if (contract.exchange() == null || contract.exchange().isEmpty() ||
-                contract.exchange().equals("NASDAQ")) {
-            contract.exchange("SMART");
-            contract.primaryExch("NASDAQ"); // Set NASDAQ as primary exchange
-        }
+        contract.exchange("SMART");
 
         // Place orders with IB
         for (int i = 0; i < complexBracketOrder.size(); i++) {
             ibClient.placeOrder(baseOrderId + i, contract, complexBracketOrder.get(i));
         }
 
+        log.info("Orders has been placed - {}", complexBracketOrder);
+        return complexBracketOrder;
     }
 
     @Override
@@ -108,7 +107,7 @@ public class OrderTrackerImpl implements OrderTracker {
         return order;
     }
 
-    public List<Order> createComplexBracketOrder(int baseOrderId) {
+    public List<Order> createComplexBracketOrder(int baseOrderId, BigDecimal entryPrice, BigDecimal stopPrice) {
 
         ComplexOrderConfig config = createSimpleConfig(Decimal.get(BigDecimal.TEN), Types.Action.BUY
         );
@@ -120,11 +119,11 @@ public class OrderTrackerImpl implements OrderTracker {
         orders.add(parentOrder);
 
         // 2. Create Stop Loss Child Order
-        Order stopLossOrder = createStopLossOrder(config, baseOrderId + 1, baseOrderId);
+        Order stopLossOrder = createStopLossOrder(config, baseOrderId + 1, baseOrderId, stopPrice);
         orders.add(stopLossOrder);
 
         // 3. Create Take Profit Child Order
-        Order takeProfitOrder = createTakeProfitOrder(config, baseOrderId + 2, baseOrderId);
+        Order takeProfitOrder = createTakeProfitOrder(config, baseOrderId + 2, baseOrderId, stopPrice.add(BigDecimal.valueOf(defaultTakeProfitRange)));
         orders.add(takeProfitOrder);
 
         return orders;
@@ -138,8 +137,8 @@ public class OrderTrackerImpl implements OrderTracker {
         order.action(config.action());
         order.orderType(OrderType.MKT);
         order.totalQuantity(config.quantity());
-        order.tif(config.timeInForce());
-        order.outsideRth(config.outsideRegularTradingHours());
+//        order.tif(config.timeInForce());
+//        order.outsideRth(config.outsideRegularTradingHours());
 
         // Enable bracket order transmission
         order.transmit(false); // Don't transmit parent until children are ready
@@ -150,7 +149,7 @@ public class OrderTrackerImpl implements OrderTracker {
     /**
      * Creates the stop loss child order
      */
-    private Order createStopLossOrder(ComplexOrderConfig config, int orderId, int parentOrderId) {
+    private Order createStopLossOrder(ComplexOrderConfig config, int orderId, int parentOrderId, BigDecimal stopPrice) {
         Order order = new Order();
 
         // Basic properties
@@ -163,12 +162,12 @@ public class OrderTrackerImpl implements OrderTracker {
         order.outsideRth(config.outsideRegularTradingHours());
 
         // Stop loss specific settings
-        order.auxPrice(0); // Will be set dynamically based on fill price and range
+        order.auxPrice(stopPrice.doubleValue()); // Will be set dynamically based on fill price and range
 
         // Advanced stop loss features
-        order.adjustedOrderType(OrderType.TRAIL_LIMIT);
-        order.adjustedStopPrice(0); // Trailing stop
-        order.adjustedStopLimitPrice(0); // Trailing stop limit
+//        order.adjustedOrderType(OrderType.TRAIL_LIMIT);
+//        order.adjustedStopPrice(200); // Trailing stop
+//        order.adjustedStopLimitPrice(200); // Trailing stop limit
 
         order.transmit(false); // Don't transmit until take profit is ready
 
@@ -178,7 +177,7 @@ public class OrderTrackerImpl implements OrderTracker {
     /**
      * Creates the take profit child order
      */
-    private Order createTakeProfitOrder(ComplexOrderConfig config, int orderId, int parentOrderId) {
+    private Order createTakeProfitOrder(ComplexOrderConfig config, int orderId, int parentOrderId, BigDecimal profit) {
         Order order = new Order();
 
         // Basic properties
@@ -191,7 +190,7 @@ public class OrderTrackerImpl implements OrderTracker {
         order.outsideRth(config.outsideRegularTradingHours());
 
         // Take profit settings
-        order.lmtPrice(0); // Will be set based on fill price and range
+        order.lmtPrice(profit.doubleValue()); // Will be set based on fill price and range
 
         order.transmit(true); // Transmit all orders when this one is placed
 

@@ -8,11 +8,12 @@ import com.ib.client.Types;
 
 import java.math.BigDecimal;
 import java.util.Collection;
+import java.util.List;
 
 public interface OrderTracker {
     void placeLimitOrder(Contract contract, String action, BigDecimal quantity, double price);
 
-    void placeMarketOrder(Contract contract, Types.Action action, double quantity);
+    List<Order> placeMarketOrder(Contract contract, Types.Action action, double quantity, BigDecimal entryPrice, BigDecimal stopPrice);
 
     void setOrder(Contract contract, Order order, OrderState orderState);
 

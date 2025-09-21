@@ -21,11 +21,12 @@ public class OrderController {
     OrderTracker orderTracker;
 
     @PostMapping
-    void placeOrder(@RequestParam String symbol, @RequestParam String action, @RequestParam BigDecimal quantity,
-                    @RequestParam double price) {
+    void placeOrder(@RequestParam String symbol, @RequestParam String action,
+                    @RequestParam BigDecimal quantity,
+                    @RequestParam BigDecimal price) {
         Contract contract = positionTracker.getPositionBySymbol(symbol).getContract();
 
-        orderTracker.placeMarketOrder(contract, Types.Action.BUY, 10);
+        orderTracker.placeMarketOrder(contract, Types.Action.BUY, 10, price, price.add(BigDecimal.ONE));
     }
 
     @GetMapping

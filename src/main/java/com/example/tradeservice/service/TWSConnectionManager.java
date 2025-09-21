@@ -214,8 +214,8 @@ public class TWSConnectionManager implements EWrapper {
         positionTracker.addPosition(new PositionHolder(contract, position, avgCost));
         int reqId = autoIncrement.getAndIncrement();
         positionTracker.createDataRequest(reqId, contract, "3 D", "5 mins");
-        client.reqHistoricalData(reqId, contract, "", "1 M", "5 mins",
-                "TRADES", 1, 1, false, null);
+//        client.reqHistoricalData(reqId, contract, "", "1 M", "5 mins",
+//                "TRADES", 1, 1, false, null);
     }
 
     @Override
@@ -394,7 +394,6 @@ public class TWSConnectionManager implements EWrapper {
 
         // Convert IB bar to entity
         Position position = request.getPosition();
-        String symbol = position.getSymbol();
 
         HistoricalData data = HistoricalData.builder()
                 .position(position)

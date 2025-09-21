@@ -10,6 +10,7 @@ import com.example.tradeservice.strategy.model.BreakoutData;
 import com.example.tradeservice.strategy.model.OpeningRange;
 import com.example.tradeservice.strategy.model.SymbolTradingState;
 import com.ib.client.Contract;
+import com.ib.client.Order;
 import com.ib.client.Types;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,8 +20,11 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -29,10 +33,10 @@ import static com.example.tradeservice.strategy.utils.FileUtils.writeToLog;
 
 @Service
 @Slf4j
-public class AsyncOpeningRangeBreakoutService {
+public class AsyncOpeningRangeBreakoutStrategy {
 
     // Configuration
-    private static final List<String> SYMBOLS = List.of("GOOG");
+    private static final List<String> SYMBOLS = List.of("GOOG", "AMZN");
     private static final int OPENING_RANGE_MINUTES = 15; // 9:30-9:45
     private static final int BREAKOUT_CONFIRMATION_BARS = 2;
     private static final BigDecimal RETEST_BUFFER = new BigDecimal("0.02");
@@ -40,19 +44,20 @@ public class AsyncOpeningRangeBreakoutService {
     // Thread-safe state tracking for multiple symbols
     private final ConcurrentMap<String, SymbolTradingState> symbolStates = new ConcurrentHashMap<>();
     @Autowired
-    private TwelveDataClient stockDataClient;
+    private CsvStockDataClient stockDataClient;
 
     @Autowired
     private OrderTracker orderTracker;
     @Autowired
     private PositionTracker positionTracker;
-
+//    @Scheduled(cron = "0 56 16 * * MON-FRI", zone = "GMT+3") // Every 5 minutes from 9:30-9:44
+//@Scheduled(cron = "0 56 16 * * MON-FRI")
+//@Scheduled(cron = "0 1-6/5 17 * * MON-FRI")
     @Scheduled(cron = "0 36-50/5 16 * * MON-FRI", zone = "GMT+3") // Every 5 minutes from 9:30-9:44
     public void collectOpeningRangeDataForAllSymbols() {
         log.info("Starting opening range data collection for all symbols");
-        String date = "2025-09-17";
         List<CompletableFuture<Void>> futures = SYMBOLS.stream()
-                .map(symbol -> this.collectOpeningRangeDataAsync(symbol, date))
+                .map(symbol -> this.collectOpeningRangeDataAsync(symbol, null))
                 .toList();
 
         // Wait for all symbols to complete
@@ -64,7 +69,7 @@ public class AsyncOpeningRangeBreakoutService {
     public void monitorAllSymbolsForBreakoutAndRetest() {
         List<CompletableFuture<Void>> futures = SYMBOLS.stream()
                 .filter(this::shouldMonitorSymbol)
-                .map(e -> this.monitorSymbolAsync(e, "2025-09-17"))
+                .map(e -> this.monitorSymbolAsync(e, null))
                 .toList();
 
         if (!futures.isEmpty()) {
@@ -75,6 +80,10 @@ public class AsyncOpeningRangeBreakoutService {
 
     @Async
     public CompletableFuture<Void> collectOpeningRangeDataAsync(String symbol, String date) {
+
+        date = Optional.ofNullable(date)
+                        .orElseGet(() ->LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+
         log.info("{} - Starting to collect Opening Range Data {}", date, symbol);
         try {
             SymbolTradingState state = getOrCreateSymbolState(symbol + date);
@@ -98,7 +107,7 @@ public class AsyncOpeningRangeBreakoutService {
                 }
             }
         } catch (Exception e) {
-            log.error("[{}] Error collecting opening range data", symbol, e);
+            log.error("[{}] - {} Error collecting opening range data", symbol, date, e);
         }
 
         return CompletableFuture.completedFuture(null);
@@ -106,6 +115,8 @@ public class AsyncOpeningRangeBreakoutService {
 
     @Async
     public CompletableFuture<Void> monitorSymbolAsync(String symbol, String date) {
+        date = Optional.ofNullable(date)
+                .orElseGet(() ->LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
         try {
             SymbolTradingState state = symbolStates.get(symbol + date);
             if (state == null) return CompletableFuture.completedFuture(null);
@@ -287,8 +298,13 @@ public class AsyncOpeningRangeBreakoutService {
         log.info("[{}] ENTRY SETUP - Suggested Entry: {}, Stop Loss: {}, Risk per share: {}",
                 symbol, suggestedEntry, suggestedStop, riskAmount);
 
+        String testDate = state.getTestDate();
+        writeToLog(symbol + "/break/" + testDate + ".log",
+                String.format("RETEST %s with retestType - %s and entry price - %s and stop loss price - %s", symbol,
+                        retestType, suggestedEntry, suggestedStop));
+
         // TODO: Implement your buy logic and risk management here
-        processEntryAsync(symbol, suggestedEntry, suggestedStop, riskAmount, state.getTestDate());
+        processEntryAsync(symbol, suggestedEntry, suggestedStop, riskAmount, testDate);
 
         state.setCurrentState(TradingState.SETUP_COMPLETE);
     }
@@ -303,16 +319,21 @@ public class AsyncOpeningRangeBreakoutService {
                     symbol, entryPrice, stopPrice, riskAmount);
 
             // Write some sample lines to the log file
-            writeToLog(symbol + "/break/" + testDate + ".log",
-                    String.format("RETEST %s with entry price - %s and stop loss price - %s", symbol,
-                            entryPrice, stopPrice));
+
 
             // Lets say 100 shares
             // calculatePositionSize(riskAmount);
 
             Contract contract = positionTracker.getPositionBySymbol(symbol).getContract();
 
-            orderTracker.placeMarketOrder(contract, Types.Action.BUY, 10);
+            List<Order> orders = orderTracker.placeMarketOrder(contract, Types.Action.BUY, 10, entryPrice, stopPrice);
+
+
+            orders.forEach(order -> writeToLog(symbol + "/break/" + testDate + ".log",
+                    String.format("%s ORDER with type %s has been placed",
+                            order.getAction(), order.getOrderType())));
+
+
 
 
             log.info("[{}] Entry order processed successfully", symbol);
@@ -332,4 +353,10 @@ public class AsyncOpeningRangeBreakoutService {
         return stockDataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN, date);
     }
 
+    public boolean isBreak(String symbol) {
+        SymbolTradingState state = symbolStates.get(symbol);
+        if (state == null) return false;
+
+        return state.getCurrentState() == TradingState.SETUP_COMPLETE;
+    }
 }
