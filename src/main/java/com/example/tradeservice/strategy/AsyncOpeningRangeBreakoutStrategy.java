@@ -44,7 +44,7 @@ public class AsyncOpeningRangeBreakoutStrategy {
     // Thread-safe state tracking for multiple symbols
     private final ConcurrentMap<String, SymbolTradingState> symbolStates = new ConcurrentHashMap<>();
     @Autowired
-    private CsvStockDataClient stockDataClient;
+    private TwelveDataClient stockDataClient;
 
     @Autowired
     private OrderTracker orderTracker;
@@ -82,7 +82,7 @@ public class AsyncOpeningRangeBreakoutStrategy {
     public CompletableFuture<Void> collectOpeningRangeDataAsync(String symbol, String date) {
 
         date = Optional.ofNullable(date)
-                        .orElseGet(() ->LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+                        .orElseGet(() -> LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
 
         log.info("{} - Starting to collect Opening Range Data {}", date, symbol);
         try {
@@ -116,7 +116,7 @@ public class AsyncOpeningRangeBreakoutStrategy {
     @Async
     public CompletableFuture<Void> monitorSymbolAsync(String symbol, String date) {
         date = Optional.ofNullable(date)
-                .orElseGet(() ->LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+                .orElseGet(() -> LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
         try {
             SymbolTradingState state = symbolStates.get(symbol + date);
             if (state == null) return CompletableFuture.completedFuture(null);
@@ -304,7 +304,7 @@ public class AsyncOpeningRangeBreakoutStrategy {
                         retestType, suggestedEntry, suggestedStop));
 
         // TODO: Implement your buy logic and risk management here
-        processEntryAsync(symbol, suggestedEntry, suggestedStop, riskAmount, testDate);
+        processEntryAsync(symbol, suggestedEntry, suggestedStop, testDate);
 
         state.setCurrentState(TradingState.SETUP_COMPLETE);
     }
@@ -312,29 +312,24 @@ public class AsyncOpeningRangeBreakoutStrategy {
     // Async helper method for order processing
     @Async
     public CompletableFuture<Void> processEntryAsync(String symbol, BigDecimal entryPrice,
-                                                     BigDecimal stopPrice, BigDecimal riskAmount, String testDate) {
+                                                     BigDecimal stopPrice, String testDate) {
         try {
             // TODO: Implement your actual order placement logic here
-            log.info("[{}] Processing entry order - Entry: {}, Stop: {}, Risk: {}",
-                    symbol, entryPrice, stopPrice, riskAmount);
+            log.info("[{}] Processing entry order - Entry: {}, Stop: {}",
+                    symbol, entryPrice, stopPrice);
 
             // Write some sample lines to the log file
 
 
-            // Lets say 100 shares
             // calculatePositionSize(riskAmount);
 
             Contract contract = positionTracker.getPositionBySymbol(symbol).getContract();
 
-            List<Order> orders = orderTracker.placeMarketOrder(contract, Types.Action.BUY, 10, entryPrice, stopPrice);
-
+            List<Order> orders = orderTracker.placeMarketOrder(contract, Types.Action.BUY, 100, stopPrice);
 
             orders.forEach(order -> writeToLog(symbol + "/break/" + testDate + ".log",
                     String.format("%s ORDER with type %s has been placed",
                             order.getAction(), order.getOrderType())));
-
-
-
 
             log.info("[{}] Entry order processed successfully", symbol);
         } catch (Exception e) {

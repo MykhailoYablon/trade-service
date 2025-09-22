@@ -26,7 +26,7 @@ public class OrderController {
                     @RequestParam BigDecimal price) {
         Contract contract = positionTracker.getPositionBySymbol(symbol).getContract();
 
-        orderTracker.placeMarketOrder(contract, Types.Action.BUY, 10, price, price.add(BigDecimal.ONE));
+        orderTracker.placeMarketOrder(contract, Types.Action.BUY, 10, price.add(BigDecimal.ONE));
     }
 
     @GetMapping

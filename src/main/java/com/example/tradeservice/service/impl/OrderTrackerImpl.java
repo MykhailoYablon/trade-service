@@ -49,10 +49,9 @@ public class OrderTrackerImpl implements OrderTracker {
     }
 
     @Override
-    public List<Order> placeMarketOrder(Contract contract, Types.Action action, double quantity, BigDecimal entryPrice,
-                                 BigDecimal stopPrice) {
+    public List<Order> placeMarketOrder(Contract contract, Types.Action action, double quantity, BigDecimal stopPrice) {
         int baseOrderId = ++orderId;
-        List<Order> complexBracketOrder = createComplexBracketOrder(baseOrderId, entryPrice, stopPrice);
+        List<Order> complexBracketOrder = createComplexBracketOrder(baseOrderId, stopPrice);
         // Ensure contract uses SMART routing
         contract.exchange("SMART");
 
@@ -107,10 +106,9 @@ public class OrderTrackerImpl implements OrderTracker {
         return order;
     }
 
-    public List<Order> createComplexBracketOrder(int baseOrderId, BigDecimal entryPrice, BigDecimal stopPrice) {
+    public List<Order> createComplexBracketOrder(int baseOrderId, BigDecimal stopPrice) {
 
-        ComplexOrderConfig config = createSimpleConfig(Decimal.get(BigDecimal.TEN), Types.Action.BUY
-        );
+        ComplexOrderConfig config = createSimpleConfig(Decimal.get(BigDecimal.TEN), Types.Action.BUY);
 
         List<Order> orders = new ArrayList<>();
 
