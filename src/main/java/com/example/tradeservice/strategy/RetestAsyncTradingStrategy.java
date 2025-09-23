@@ -2,24 +2,28 @@ package com.example.tradeservice.strategy;
 
 import com.example.tradeservice.model.TwelveCandleBar;
 import com.example.tradeservice.model.enums.TimeFrame;
-import com.example.tradeservice.strategy.enums.TradingState;
-import lombok.AllArgsConstructor;
+import com.example.tradeservice.strategy.dataclient.StockDataClient;
+import com.example.tradeservice.strategy.model.SymbolTradingState;
+import com.example.tradeservice.strategy.model.TradingContext;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.util.concurrent.CompletableFuture;
 
-import static com.example.tradeservice.strategy.utils.FileUtils.writeToLog;
-
 @Slf4j
 @Service
-@AllArgsConstructor
-public class RetestStrategy {
+public class RetestAsyncTradingStrategy {
 
-    private final AsyncOpeningRangeBreakoutStrategy orbService;
-    private final CsvStockDataClient dataClient;
+    @Autowired
+    private AsyncTradingStrategy orbService;
+
+    @Autowired
+    @Qualifier("csvData")
+    private StockDataClient dataClient;
 
     @Async("strategyExecutor")
     public CompletableFuture<Void> startStrategy(String symbol, String date) {
@@ -29,11 +33,11 @@ public class RetestStrategy {
                     dataClient.initializeCsvForDay(symbol, date);
                     log.info("Completed CSV initialization for {} on {}", symbol, date);
                 })
-                .thenCompose(v ->{
+                .thenCompose(v -> {
                     log.info("Moving to collect opening range data for {} on {}", symbol, date);
                     return collectOpeningRangeDataSequentially(symbol, date, 3);
                 })
-                .thenCompose(v -> monitorSymbolLoop(symbol, date, 100))
+                .thenCompose(v -> onTick(100))
 //                .thenCompose(isBreak -> {
 //                    if(isBreak) {
 //                        checkProfit(symbol, date);
@@ -46,11 +50,31 @@ public class RetestStrategy {
                 });
     }
 
+    public CompletableFuture<Void> onTick(int maxIterations) {
+
+//        if (orbService.isBreak(symbol + date)) {
+//            return CompletableFuture.completedFuture(null);
+//        }
+        if (maxIterations <= 0 || !orbService.shouldMonitorSymbol()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        return orbService.onTick()
+                .thenCompose(v -> CompletableFuture.runAsync(() -> {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }))
+                .thenCompose(v -> onTick(maxIterations - 1));
+    }
+
     private CompletableFuture<Void> collectOpeningRangeDataSequentially(String symbol, String date, int count) {
         if (count <= 0) {
             return CompletableFuture.completedFuture(null);
         }
-        return orbService.collectOpeningRangeDataAsync(symbol, date)
+        return orbService.startStrategy(new TradingContext(symbol, date, new SymbolTradingState()))
                 .thenCompose(v -> CompletableFuture.runAsync(() -> {
                     try {
                         Thread.sleep(100);
@@ -59,26 +83,6 @@ public class RetestStrategy {
                     }
                 }))
                 .thenCompose(v -> collectOpeningRangeDataSequentially(symbol, date, count - 1));
-    }
-
-    private CompletableFuture<Void> monitorSymbolLoop(String symbol, String date, int maxIterations) {
-
-        if (orbService.isBreak(symbol + date)) {
-            return CompletableFuture.completedFuture(null);
-        }
-        if (maxIterations <= 0 || !orbService.shouldMonitorSymbol(symbol + date)) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        return orbService.monitorSymbolAsync(symbol, date)
-                .thenCompose(v -> CompletableFuture.runAsync(() -> {
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                }))
-                .thenCompose(v -> monitorSymbolLoop(symbol, date, maxIterations - 1));
     }
 
     private CompletableFuture<Void> checkProfit(String symbol, String date) {
@@ -97,7 +101,7 @@ public class RetestStrategy {
     private CompletableFuture<Void> checkMinute(String symbol, String date) {
         TwelveCandleBar oneMinBar;
         try {
-            oneMinBar = dataClient.fetchNextCandle(symbol, TimeFrame.ONE_MIN, date);
+            oneMinBar = dataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN, date);
             if (oneMinBar != null) {
 //                writeToLog(symbol + "/" + state.getTestDate() + ".log",
 //                        String.format("[%s] One min bar added: Close=%s > Opening High=%s",

@@ -1,6 +1,6 @@
 package com.example.tradeservice.service.impl;
 
-import com.example.tradeservice.configuration.TwelveDataClient;
+import com.example.tradeservice.strategy.dataclient.TwelveDataClient;
 import com.example.tradeservice.model.StockResponse;
 import com.example.tradeservice.model.enums.TimeFrame;
 import lombok.AllArgsConstructor;

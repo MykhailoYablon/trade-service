@@ -1,4 +1,4 @@
-package com.example.tradeservice.strategy;
+package com.example.tradeservice.strategy.dataclient;
 
 import com.example.tradeservice.model.TwelveCandleBar;
 import com.example.tradeservice.model.enums.TimeFrame;
@@ -10,9 +10,10 @@ import com.opencsv.bean.CsvToBeanFilter;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -21,7 +22,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 
-@Service
+@Component
+@Qualifier("csvData")
 @Slf4j
 @AllArgsConstructor
 public class CsvStockDataClient implements StockDataClient {

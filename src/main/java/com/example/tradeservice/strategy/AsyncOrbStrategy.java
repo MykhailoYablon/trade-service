@@ -1,21 +1,22 @@
 package com.example.tradeservice.strategy;
 
-import com.example.tradeservice.configuration.TwelveDataClient;
 import com.example.tradeservice.model.TwelveCandleBar;
 import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.service.OrderTracker;
 import com.example.tradeservice.service.impl.PositionTracker;
+import com.example.tradeservice.strategy.dataclient.StockDataClient;
 import com.example.tradeservice.strategy.enums.TradingState;
 import com.example.tradeservice.strategy.model.BreakoutData;
 import com.example.tradeservice.strategy.model.OpeningRange;
 import com.example.tradeservice.strategy.model.SymbolTradingState;
+import com.example.tradeservice.strategy.model.TradingContext;
 import com.ib.client.Contract;
 import com.ib.client.Order;
 import com.ib.client.Types;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -24,6 +25,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,60 +35,48 @@ import static com.example.tradeservice.strategy.utils.FileUtils.writeToLog;
 
 @Service
 @Slf4j
-public class AsyncOpeningRangeBreakoutStrategy {
+public class AsyncOrbStrategy implements AsyncTradingStrategy {
 
     // Configuration
-    private static final List<String> SYMBOLS = List.of("GOOG", "AMZN");
     private static final int OPENING_RANGE_MINUTES = 15; // 9:30-9:45
     private static final int BREAKOUT_CONFIRMATION_BARS = 2;
     private static final BigDecimal RETEST_BUFFER = new BigDecimal("0.02");
 
     // Thread-safe state tracking for multiple symbols
-    private final ConcurrentMap<String, SymbolTradingState> symbolStates = new ConcurrentHashMap<>();
+//    private final ConcurrentMap<String, SymbolTradingState> symbolStates = new ConcurrentHashMap<>();
+    private TradingContext context;
+
     @Autowired
-    private TwelveDataClient stockDataClient;
+    @Qualifier("twelveData")
+    private StockDataClient dataClient;
 
     @Autowired
     private OrderTracker orderTracker;
     @Autowired
     private PositionTracker positionTracker;
-//    @Scheduled(cron = "0 56 16 * * MON-FRI", zone = "GMT+3") // Every 5 minutes from 9:30-9:44
-//@Scheduled(cron = "0 56 16 * * MON-FRI")
-//@Scheduled(cron = "0 1-6/5 17 * * MON-FRI")
-    @Scheduled(cron = "0 36-50/5 16 * * MON-FRI", zone = "GMT+3") // Every 5 minutes from 9:30-9:44
-    public void collectOpeningRangeDataForAllSymbols() {
-        log.info("Starting opening range data collection for all symbols");
-        List<CompletableFuture<Void>> futures = SYMBOLS.stream()
-                .map(symbol -> this.collectOpeningRangeDataAsync(symbol, null))
-                .toList();
 
-        // Wait for all symbols to complete
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .thenRun(() -> log.info("Completed opening range collection for all symbols"));
-    }
+    @Async("strategyExecutor")
+    @Override
+    public CompletableFuture<Void> startStrategy(TradingContext initialContext) {
 
-    @Scheduled(fixedRate = 60000) // Every minute
-    public void monitorAllSymbolsForBreakoutAndRetest() {
-        List<CompletableFuture<Void>> futures = SYMBOLS.stream()
-                .filter(this::shouldMonitorSymbol)
-                .map(e -> this.monitorSymbolAsync(e, null))
-                .toList();
-
-        if (!futures.isEmpty()) {
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .thenRun(() -> log.debug("Completed monitoring cycle for active symbols"));
+        if (Objects.isNull(this.context)) {
+            this.context = initialContext;
         }
-    }
 
-    @Async
-    public CompletableFuture<Void> collectOpeningRangeDataAsync(String symbol, String date) {
+        log.info("Context before = {}", context);
+        log.info("Symbol for - {}; {}", context.symbol(), context);
+
+        log.info("Context after = {}", context);
+
+        var date = context.date();
+        var symbol = context.symbol();
 
         date = Optional.ofNullable(date)
                         .orElseGet(() -> LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
 
         log.info("{} - Starting to collect Opening Range Data {}", date, symbol);
         try {
-            SymbolTradingState state = getOrCreateSymbolState(symbol + date);
+            SymbolTradingState state = context.state();
             state.setTestDate(date);
             if (state.getCurrentState() != TradingState.COLLECTING_OPENING_RANGE) {
                 initializeSymbolForNewTradingDay(symbol, state);
@@ -113,12 +103,22 @@ public class AsyncOpeningRangeBreakoutStrategy {
         return CompletableFuture.completedFuture(null);
     }
 
-    @Async
-    public CompletableFuture<Void> monitorSymbolAsync(String symbol, String date) {
+    @Override
+    @Async("strategyExecutor")
+    public CompletableFuture<Void> onTick() {
+        if (Objects.isNull(context)) {
+            log.info("Context has not been initialized yet");
+            return CompletableFuture.completedFuture(null);
+        }
+        String date = context.date();
+        var symbol = context.symbol();
+        log.info("Context onTick = {}", context);
+        log.info("Symbol onTick for - {}; {}", symbol, this);
+
         date = Optional.ofNullable(date)
                 .orElseGet(() -> LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
         try {
-            SymbolTradingState state = symbolStates.get(symbol + date);
+            SymbolTradingState state = context.state();
             if (state == null) return CompletableFuture.completedFuture(null);
 
 
@@ -142,17 +142,18 @@ public class AsyncOpeningRangeBreakoutStrategy {
         return CompletableFuture.completedFuture(null);
     }
 
-    public boolean shouldMonitorSymbol(String symbol) {
-        SymbolTradingState state = symbolStates.get(symbol);
+    public boolean shouldMonitorSymbol() {
+        if (Objects.isNull(context)) {
+            log.info("Context has not been initialized yet");
+            return false;
+        }
+        SymbolTradingState state = context.state();
         if (state == null) return false;
 
         return state.getCurrentState() == TradingState.MONITORING_FOR_BREAKOUT ||
                 state.getCurrentState() == TradingState.MONITORING_FOR_RETEST;
     }
 
-    private SymbolTradingState getOrCreateSymbolState(String symbol) {
-        return symbolStates.computeIfAbsent(symbol, k -> new SymbolTradingState());
-    }
 
     private void initializeSymbolForNewTradingDay(String symbol, SymbolTradingState state) {
         state.reset();
@@ -310,7 +311,7 @@ public class AsyncOpeningRangeBreakoutStrategy {
     }
 
     // Async helper method for order processing
-    @Async
+    @Async("strategyExecutor")
     public CompletableFuture<Void> processEntryAsync(String symbol, BigDecimal entryPrice,
                                                      BigDecimal stopPrice, String testDate) {
         try {
@@ -341,15 +342,15 @@ public class AsyncOpeningRangeBreakoutStrategy {
 
     // Mock methods - replace with your actual data fetching logic
     private TwelveCandleBar fetchFiveMinuteCandle(String symbol, String date) {
-        return stockDataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN, date);
+        return dataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN, date);
     }
 
     private TwelveCandleBar fetchOneMinuteCandle(String symbol, String date) {
-        return stockDataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN, date);
+        return dataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN, date);
     }
 
     public boolean isBreak(String symbol) {
-        SymbolTradingState state = symbolStates.get(symbol);
+        SymbolTradingState state = context.state();
         if (state == null) return false;
 
         return state.getCurrentState() == TradingState.SETUP_COMPLETE;
