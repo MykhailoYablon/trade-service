@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -19,9 +20,10 @@ import static com.example.tradeservice.model.enums.Endpoint.TWELVE_QUOTE;
 @NoArgsConstructor
 @Getter
 @Setter
-@Component
+@Component("twelveData")
 @Qualifier("twelveData")
 @Slf4j
+@Primary
 public class TwelveDataClient implements StockDataClient {
 
     @Autowired

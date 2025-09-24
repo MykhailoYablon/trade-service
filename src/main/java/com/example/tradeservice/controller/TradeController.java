@@ -7,7 +7,6 @@ import com.example.tradeservice.model.*;
 import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.service.TradeDataService;
 import com.example.tradeservice.service.impl.YearlyHistoricalDataService;
-import com.example.tradeservice.strategy.dataclient.CsvStockDataClient;
 import com.example.tradeservice.strategy.RetestAsyncTradingStrategy;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

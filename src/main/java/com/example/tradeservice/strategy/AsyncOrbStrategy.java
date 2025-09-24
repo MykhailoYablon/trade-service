@@ -13,10 +13,13 @@ import com.example.tradeservice.strategy.model.TradingContext;
 import com.ib.client.Contract;
 import com.ib.client.Order;
 import com.ib.client.Types;
+import lombok.AllArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -28,12 +31,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 import static com.example.tradeservice.strategy.utils.FileUtils.writeToLog;
 
-@Service
+@Component
 @Slf4j
 public class AsyncOrbStrategy implements AsyncTradingStrategy {
 
@@ -46,14 +47,15 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
 //    private final ConcurrentMap<String, SymbolTradingState> symbolStates = new ConcurrentHashMap<>();
     private TradingContext context;
 
-    @Autowired
-    @Qualifier("twelveData")
-    private StockDataClient dataClient;
+    private final StockDataClient dataClient;
+    private final OrderTracker orderTracker;
+    private final PositionTracker positionTracker;
 
-    @Autowired
-    private OrderTracker orderTracker;
-    @Autowired
-    private PositionTracker positionTracker;
+    public AsyncOrbStrategy(StockDataClient dataClient, OrderTracker orderTracker, PositionTracker positionTracker) {
+        this.dataClient = dataClient;
+        this.orderTracker = orderTracker;
+        this.positionTracker = positionTracker;
+    }
 
     @Async("strategyExecutor")
     @Override
@@ -324,6 +326,7 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
 
             // calculatePositionSize(riskAmount);
 
+            //We need to mock this somehow?
             Contract contract = positionTracker.getPositionBySymbol(symbol).getContract();
 
             List<Order> orders = orderTracker.placeMarketOrder(contract, Types.Action.BUY, 100, stopPrice);

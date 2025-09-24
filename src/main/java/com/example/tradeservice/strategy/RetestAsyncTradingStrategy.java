@@ -19,7 +19,8 @@ import java.util.concurrent.CompletableFuture;
 public class RetestAsyncTradingStrategy {
 
     @Autowired
-    private AsyncTradingStrategy orbService;
+    @Qualifier("csvDataStrategy")
+    private AsyncTradingStrategy asyncOrbStrategy;
 
     @Autowired
     @Qualifier("csvData")
@@ -55,11 +56,11 @@ public class RetestAsyncTradingStrategy {
 //        if (orbService.isBreak(symbol + date)) {
 //            return CompletableFuture.completedFuture(null);
 //        }
-        if (maxIterations <= 0 || !orbService.shouldMonitorSymbol()) {
+        if (maxIterations <= 0 || !asyncOrbStrategy.shouldMonitorSymbol()) {
             return CompletableFuture.completedFuture(null);
         }
 
-        return orbService.onTick()
+        return asyncOrbStrategy.onTick()
                 .thenCompose(v -> CompletableFuture.runAsync(() -> {
                     try {
                         Thread.sleep(100);
@@ -74,7 +75,7 @@ public class RetestAsyncTradingStrategy {
         if (count <= 0) {
             return CompletableFuture.completedFuture(null);
         }
-        return orbService.startStrategy(new TradingContext(symbol, date, new SymbolTradingState()))
+        return asyncOrbStrategy.startStrategy(new TradingContext(symbol, date, new SymbolTradingState()))
                 .thenCompose(v -> CompletableFuture.runAsync(() -> {
                     try {
                         Thread.sleep(100);

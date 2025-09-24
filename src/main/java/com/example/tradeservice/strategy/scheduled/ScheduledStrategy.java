@@ -1,10 +1,12 @@
 package com.example.tradeservice.strategy.scheduled;
 
 import com.example.tradeservice.strategy.AsyncTradingStrategy;
+import com.example.tradeservice.strategy.dataclient.StockDataClient;
 import com.example.tradeservice.strategy.model.SymbolTradingState;
 import com.example.tradeservice.strategy.model.TradingContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +20,7 @@ public class ScheduledStrategy {
     private static final List<String> SYMBOLS = List.of("GOOG", "AMZN", "MSFT");
 
     @Autowired
+    @Qualifier("twelveDataStrategy")
     private AsyncTradingStrategy asyncOrbStrategy;
 
     //@Scheduled(cron = "0 56 16 * * MON-FRI", zone = "GMT+3") // Every 5 minutes from 9:30-9:44
@@ -35,7 +38,7 @@ public class ScheduledStrategy {
                 .thenRun(() -> log.info("Completed initial 5 min opening range collection for all symbols"));
     }
 
-    @Scheduled(fixedRate = 60000) // Every minute
+//    @Scheduled(fixedRate = 60000) // Every minute
     public void monitorAllSymbolsForBreakoutAndRetest() {
         List<CompletableFuture<Void>> futures = SYMBOLS.stream()
                 .filter(symbol -> asyncOrbStrategy.shouldMonitorSymbol())

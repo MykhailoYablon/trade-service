@@ -22,7 +22,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 
-@Component
+@Component("csvData")
 @Qualifier("csvData")
 @Slf4j
 @AllArgsConstructor
