@@ -1,5 +1,6 @@
 package com.example.tradeservice.strategy;
 
+import com.example.tradeservice.model.PositionHolder;
 import com.example.tradeservice.model.TwelveCandleBar;
 import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.service.OrderTracker;
@@ -13,25 +14,24 @@ import com.example.tradeservice.strategy.model.TradingContext;
 import com.ib.client.Contract;
 import com.ib.client.Order;
 import com.ib.client.Types;
-import lombok.AllArgsConstructor;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
+import static com.example.tradeservice.strategy.enums.StrategyMode.LIVE;
 import static com.example.tradeservice.strategy.utils.FileUtils.writeToLog;
 
 @Component
@@ -42,10 +42,6 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
     private static final int OPENING_RANGE_MINUTES = 15; // 9:30-9:45
     private static final int BREAKOUT_CONFIRMATION_BARS = 2;
     private static final BigDecimal RETEST_BUFFER = new BigDecimal("0.02");
-
-    // Thread-safe state tracking for multiple symbols
-//    private final ConcurrentMap<String, SymbolTradingState> symbolStates = new ConcurrentHashMap<>();
-    private TradingContext context;
 
     private final StockDataClient dataClient;
     private final OrderTracker orderTracker;
@@ -59,78 +55,68 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
 
     @Async("strategyExecutor")
     @Override
-    public CompletableFuture<Void> startStrategy(TradingContext initialContext) {
-
-        if (Objects.isNull(this.context)) {
-            this.context = initialContext;
-        }
-
-        log.info("Context before = {}", context);
-        log.info("Symbol for - {}; {}", context.symbol(), context);
-
-        log.info("Context after = {}", context);
-
+    public CompletableFuture<TradingContext> startStrategy(TradingContext context) {
         var date = context.date();
         var symbol = context.symbol();
-
         date = Optional.ofNullable(date)
                         .orElseGet(() -> LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
 
-        log.info("{} - Starting to collect Opening Range Data {}", date, symbol);
         try {
             SymbolTradingState state = context.state();
-            state.setTestDate(date);
             if (state.getCurrentState() != TradingState.COLLECTING_OPENING_RANGE) {
                 initializeSymbolForNewTradingDay(symbol, state);
             }
+            state.setTestDate(date);
 
-            TwelveCandleBar fiveMinBar = fetchFiveMinuteCandle(symbol, date);
-            if (fiveMinBar != null) {
-                state.getFiveMinuteBars().add(fiveMinBar);
+            for (int i = 0; i < 3; i++) {
+                TwelveCandleBar fiveMinBar = fetchFiveMinuteCandle(symbol, date);
+                if (fiveMinBar != null) {
+                    state.getFiveMinuteBars().add(fiveMinBar);
 
-                log.info("[{}] Collected 5min bar {}/{}: High={}, Low={}, Close={}",
-                        symbol, state.getFiveMinuteBars().size(), OPENING_RANGE_MINUTES / 5,
-                        fiveMinBar.getHigh(), fiveMinBar.getLow(), fiveMinBar.getClose());
+                    log.info("[{}] Collected 5min bar {}/{}: High={}, Low={}, Close={}",
+                            symbol, state.getFiveMinuteBars().size(), OPENING_RANGE_MINUTES / 5,
+                            fiveMinBar.getHigh(), fiveMinBar.getLow(), fiveMinBar.getClose());
 
-                // Check if we've collected enough bars for opening range
-                if (state.getFiveMinuteBars().size() >= OPENING_RANGE_MINUTES / 5) {
-                    calculateOpeningRange(symbol, state);
-                    transitionToBreakoutMonitoring(symbol, state);
+                    // Check if we've collected enough bars for opening range
+                    if (state.getFiveMinuteBars().size() >= OPENING_RANGE_MINUTES / 5) {
+                        calculateOpeningRange(symbol, state);
+                        transitionToBreakoutMonitoring(symbol, state);
+                    }
                 }
+                log.info("{} [{}] Waiting 5 minutes before next interval", date, symbol);
+                if (LIVE.equals(context.mode()) && i < 2)
+                    Thread.sleep(5 * 60 * 1000); // 5 minutes
             }
         } catch (Exception e) {
             log.error("[{}] - {} Error collecting opening range data", symbol, date, e);
         }
 
-        return CompletableFuture.completedFuture(null);
+        return CompletableFuture.completedFuture(context);
     }
 
     @Override
     @Async("strategyExecutor")
-    public CompletableFuture<Void> onTick() {
+    public CompletableFuture<List<Order>> onTick(TradingContext context) {
         if (Objects.isNull(context)) {
             log.info("Context has not been initialized yet");
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.completedFuture(Collections.emptyList());
         }
         String date = context.date();
         var symbol = context.symbol();
-        log.info("Context onTick = {}", context);
-        log.info("Symbol onTick for - {}; {}", symbol, this);
+        log.info("Context onTick = {}, {}, {}", context.symbol(), context.date(), context.state().getCurrentState());
 
         date = Optional.ofNullable(date)
                 .orElseGet(() -> LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
         try {
             SymbolTradingState state = context.state();
-            if (state == null) return CompletableFuture.completedFuture(null);
-
+            if (state == null) return CompletableFuture.completedFuture(Collections.emptyList());
 
             TwelveCandleBar oneMinBar = fetchOneMinuteCandle(symbol, date);
             if (oneMinBar != null) {
-
                 if (state.getCurrentState() == TradingState.MONITORING_FOR_BREAKOUT) {
                     handleBreakoutMonitoring(symbol, state, oneMinBar);
                 } else if (state.getCurrentState() == TradingState.MONITORING_FOR_RETEST) {
-                    handleRetestMonitoring(symbol, state, oneMinBar);
+                    return handleRetestMonitoring(symbol, state, oneMinBar);
                 }
 
                 writeToLog(symbol + "/" + state.getTestDate() + ".log",
@@ -141,15 +127,10 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
             log.error("[{}] Error monitoring for breakout/retest", symbol, e);
         }
 
-        return CompletableFuture.completedFuture(null);
+        return CompletableFuture.completedFuture(Collections.emptyList());
     }
 
-    public boolean shouldMonitorSymbol() {
-        if (Objects.isNull(context)) {
-            log.info("Context has not been initialized yet");
-            return false;
-        }
-        SymbolTradingState state = context.state();
+    public boolean shouldMonitorSymbol(SymbolTradingState state) {
         if (state == null) return false;
 
         return state.getCurrentState() == TradingState.MONITORING_FOR_BREAKOUT ||
@@ -269,7 +250,7 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
                 openingHigh);
     }
 
-    private void handleRetestMonitoring(String symbol, SymbolTradingState state, TwelveCandleBar oneMinBar) {
+    private CompletableFuture<List<Order>> handleRetestMonitoring(String symbol, SymbolTradingState state, TwelveCandleBar oneMinBar) {
         OpeningRange openingRange = state.getOpeningRange();
         BigDecimal retestLevel = openingRange.high().add(RETEST_BUFFER);
 
@@ -279,17 +260,19 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
             // Shallow retest - price held above breakout level
             log.info("[{}] SHALLOW RETEST DETECTED - Low: {} held above retest level: {}",
                     symbol, oneMinBar.getLow(), retestLevel);
-            confirmRetestAndPrepareEntry(symbol, state, "SHALLOW");
+            return confirmRetestAndPrepareEntry(symbol, state, "SHALLOW");
 
         } else if (new BigDecimal(oneMinBar.getClose()).compareTo(openingRange.high()) <= 0) {
             // Deeper retest - price closed back below opening high
             log.info("[{}] DEEP RETEST DETECTED - Close: {} back below opening high: {}",
                     symbol, oneMinBar.getClose(), openingRange.high());
-            confirmRetestAndPrepareEntry(symbol, state, "DEEP");
+            return confirmRetestAndPrepareEntry(symbol, state, "DEEP");
         }
+        return CompletableFuture.completedFuture(Collections.emptyList());
     }
 
-    private void confirmRetestAndPrepareEntry(String symbol, SymbolTradingState state, String retestType) {
+    private CompletableFuture<List<Order>> confirmRetestAndPrepareEntry(String symbol, SymbolTradingState state,
+                                                                        String retestType) {
         log.info("[{}] RETEST CONFIRMED ({})! Ready for entry logic.", symbol, retestType);
 
         OpeningRange openingRange = state.getOpeningRange();
@@ -306,41 +289,38 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
                 String.format("RETEST %s with retestType - %s and entry price - %s and stop loss price - %s", symbol,
                         retestType, suggestedEntry, suggestedStop));
 
-        // TODO: Implement your buy logic and risk management here
-        processEntryAsync(symbol, suggestedEntry, suggestedStop, testDate);
+        CompletableFuture<List<Order>> orders = processEntryAsync(symbol, suggestedEntry, suggestedStop, testDate);
 
         state.setCurrentState(TradingState.SETUP_COMPLETE);
+        return orders;
     }
 
     // Async helper method for order processing
     @Async("strategyExecutor")
-    public CompletableFuture<Void> processEntryAsync(String symbol, BigDecimal entryPrice,
+    public CompletableFuture<List<Order>> processEntryAsync(String symbol, BigDecimal entryPrice,
                                                      BigDecimal stopPrice, String testDate) {
         try {
-            // TODO: Implement your actual order placement logic here
             log.info("[{}] Processing entry order - Entry: {}, Stop: {}",
                     symbol, entryPrice, stopPrice);
 
-            // Write some sample lines to the log file
+            Contract contract = Optional.ofNullable(positionTracker.getPositionBySymbol(symbol))
+                    .map(PositionHolder::getContract)
+                    .orElse(null);
 
 
-            // calculatePositionSize(riskAmount);
-
-            //We need to mock this somehow?
-            Contract contract = positionTracker.getPositionBySymbol(symbol).getContract();
-
-            List<Order> orders = orderTracker.placeMarketOrder(contract, Types.Action.BUY, 100, stopPrice);
+            List<Order> orders = orderTracker.placeMarketOrder(Types.Action.BUY, 100, stopPrice);
+//            List<Order> orders = orderTracker.placeMarketOrder(contract, Types.Action.BUY, 100, stopPrice);
 
             orders.forEach(order -> writeToLog(symbol + "/break/" + testDate + ".log",
-                    String.format("%s ORDER with type %s has been placed",
-                            order.getAction(), order.getOrderType())));
-
-            log.info("[{}] Entry order processed successfully", symbol);
+                    String.format("%s ORDER with type %s has been placed and order lmtPrice - %s, ",
+                            order.getAction(), order.getOrderType(), order.lmtPrice())));
+            log.info("[{}] Entry orders processed successfully", symbol);
+            return CompletableFuture.completedFuture(orders);
         } catch (Exception e) {
             log.error("[{}] Error processing entry order", symbol, e);
         }
 
-        return CompletableFuture.completedFuture(null);
+        return CompletableFuture.completedFuture(Collections.emptyList());
     }
 
     // Mock methods - replace with your actual data fetching logic
@@ -350,12 +330,5 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
 
     private TwelveCandleBar fetchOneMinuteCandle(String symbol, String date) {
         return dataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN, date);
-    }
-
-    public boolean isBreak(String symbol) {
-        SymbolTradingState state = context.state();
-        if (state == null) return false;
-
-        return state.getCurrentState() == TradingState.SETUP_COMPLETE;
     }
 }

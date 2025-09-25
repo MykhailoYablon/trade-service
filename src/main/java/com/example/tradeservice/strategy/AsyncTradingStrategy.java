@@ -1,15 +1,18 @@
 package com.example.tradeservice.strategy;
 
+import com.example.tradeservice.strategy.model.SymbolTradingState;
 import com.example.tradeservice.strategy.model.TradingContext;
+import com.ib.client.Order;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public interface AsyncTradingStrategy {
 
-    CompletableFuture<Void> startStrategy(TradingContext context);
+    CompletableFuture<TradingContext> startStrategy(TradingContext context);
 
-    CompletableFuture<Void> onTick();
+    CompletableFuture<List<Order>> onTick(TradingContext context);
 
-    boolean shouldMonitorSymbol();
+    boolean shouldMonitorSymbol(SymbolTradingState state);
 
 }

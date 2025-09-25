@@ -64,6 +64,11 @@ public class OrderTrackerImpl implements OrderTracker {
         return complexBracketOrder;
     }
 
+    public List<Order> placeMarketOrder(Types.Action action, double quantity, BigDecimal stopPrice) {
+        int baseOrderId = ++orderId;
+        return createComplexBracketOrder(baseOrderId, stopPrice);
+    }
+
     @Override
     public void setOrder(Contract contract, Order order, OrderState orderState) {
         orders.put(order.permId(), new OrderHolder(order.permId(), order, contract, orderState));

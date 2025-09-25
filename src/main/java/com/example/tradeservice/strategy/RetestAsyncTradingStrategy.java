@@ -3,8 +3,10 @@ package com.example.tradeservice.strategy;
 import com.example.tradeservice.model.TwelveCandleBar;
 import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.strategy.dataclient.StockDataClient;
+import com.example.tradeservice.strategy.enums.StrategyMode;
 import com.example.tradeservice.strategy.model.SymbolTradingState;
 import com.example.tradeservice.strategy.model.TradingContext;
+import com.ib.client.Order;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -12,11 +14,18 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
 public class RetestAsyncTradingStrategy {
+
+    // Thread-safe state tracking for multiple symbols
+    private final Map<String, TradingContext> symbolContexts = new ConcurrentHashMap<>();
 
     @Autowired
     @Qualifier("csvDataStrategy")
@@ -27,21 +36,22 @@ public class RetestAsyncTradingStrategy {
     private StockDataClient dataClient;
 
     @Async("strategyExecutor")
-    public CompletableFuture<Void> startStrategy(String symbol, String date) {
+    public CompletableFuture<List<Order>> startStrategy(String symbol, String date) {
         new File("logs/" + symbol + "/break").mkdirs();
         return CompletableFuture
-                .runAsync(() -> {
-                    dataClient.initializeCsvForDay(symbol, date);
-                    log.info("Completed CSV initialization for {} on {}", symbol, date);
+                .runAsync(() -> dataClient.initializeCsvForDay(symbol, date))
+                .thenCompose(v -> asyncOrbStrategy.startStrategy(new TradingContext(symbol, date, new SymbolTradingState(),
+                        StrategyMode.BACKTEST)))
+                .thenCompose(context -> {
+                    if (context != null) {
+                        symbolContexts.put(context.symbol(), context);
+                        log.info("Saved context for symbol: {}", context.symbol());
+                    }
+                    return onTick(context, 100);
                 })
-                .thenCompose(v -> {
-                    log.info("Moving to collect opening range data for {} on {}", symbol, date);
-                    return collectOpeningRangeDataSequentially(symbol, date, 3);
-                })
-                .thenCompose(v -> onTick(100))
 //                .thenCompose(isBreak -> {
-//                    if(isBreak) {
-//                        checkProfit(symbol, date);
+//                    if(!isBreak.isEmpty()) {
+//                        checkResult(symbol, date);
 //                    }
 //                    return new CompletableFuture<Void>();
 //                })
@@ -51,16 +61,17 @@ public class RetestAsyncTradingStrategy {
                 });
     }
 
-    public CompletableFuture<Void> onTick(int maxIterations) {
+    public CompletableFuture<List<Order>> onTick(TradingContext context, int maxIterations) {
 
 //        if (orbService.isBreak(symbol + date)) {
 //            return CompletableFuture.completedFuture(null);
 //        }
-        if (maxIterations <= 0 || !asyncOrbStrategy.shouldMonitorSymbol()) {
-            return CompletableFuture.completedFuture(null);
+        if (maxIterations <= 0 || !asyncOrbStrategy.shouldMonitorSymbol(context.state())) {
+            symbolContexts.remove(context.symbol());
+            return CompletableFuture.completedFuture(Collections.emptyList());
         }
 
-        return asyncOrbStrategy.onTick()
+        return asyncOrbStrategy.onTick(context)
                 .thenCompose(v -> CompletableFuture.runAsync(() -> {
                     try {
                         Thread.sleep(100);
@@ -68,25 +79,25 @@ public class RetestAsyncTradingStrategy {
                         Thread.currentThread().interrupt();
                     }
                 }))
-                .thenCompose(v -> onTick(maxIterations - 1));
+                .thenCompose(v -> onTick(context, maxIterations - 1));
     }
 
-    private CompletableFuture<Void> collectOpeningRangeDataSequentially(String symbol, String date, int count) {
-        if (count <= 0) {
-            return CompletableFuture.completedFuture(null);
-        }
-        return asyncOrbStrategy.startStrategy(new TradingContext(symbol, date, new SymbolTradingState()))
-                .thenCompose(v -> CompletableFuture.runAsync(() -> {
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                }))
-                .thenCompose(v -> collectOpeningRangeDataSequentially(symbol, date, count - 1));
-    }
+//    private CompletableFuture<Void> collectOpeningRangeDataSequentially(String symbol, String date, int count) {
+//        if (count <= 0) {
+//            return CompletableFuture.completedFuture(null);
+//        }
+//        return asyncOrbStrategy.startStrategy(new TradingContext(symbol, date, new SymbolTradingState(), StrategyMode.BACKTEST))
+//                .thenCompose(v -> CompletableFuture.runAsync(() -> {
+//                    try {
+//                        Thread.sleep(100);
+//                    } catch (InterruptedException e) {
+//                        Thread.currentThread().interrupt();
+//                    }
+//                }))
+//                .thenCompose(v -> collectOpeningRangeDataSequentially(symbol, date, count - 1));
+//    }
 
-    private CompletableFuture<Void> checkProfit(String symbol, String date) {
+    private CompletableFuture<Void> checkResult(String symbol, String date) {
         log.info("Checking profit");
         return this.checkMinute(symbol, date)
                 .thenCompose(v -> CompletableFuture.runAsync(() -> {
@@ -96,7 +107,7 @@ public class RetestAsyncTradingStrategy {
                         Thread.currentThread().interrupt();
                     }
                 }))
-                .thenCompose(v -> checkProfit(symbol, date));
+                .thenCompose(v -> checkResult(symbol, date));
     }
 
     private CompletableFuture<Void> checkMinute(String symbol, String date) {

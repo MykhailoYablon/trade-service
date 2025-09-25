@@ -3,11 +3,15 @@ package com.example.tradeservice.controller;
 import com.example.tradeservice.configuration.FinnhubClient;
 import com.example.tradeservice.handler.StockTradeWebSocketHandler;
 import com.example.tradeservice.handler.TradeUpdatedEvent;
-import com.example.tradeservice.model.*;
+import com.example.tradeservice.model.MarketStatus;
+import com.example.tradeservice.model.Quote;
+import com.example.tradeservice.model.SymbolLookup;
+import com.example.tradeservice.model.TradeData;
 import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.service.TradeDataService;
 import com.example.tradeservice.service.impl.YearlyHistoricalDataService;
 import com.example.tradeservice.strategy.RetestAsyncTradingStrategy;
+import com.ib.client.Order;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationListener;
@@ -177,7 +181,7 @@ public class TradeController {
                             monthlyDateStrings.size(),
                             currentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")));
 
-                    List<CompletableFuture<Void>> monthlyFutures = monthlyDateStrings.stream()
+                    List<CompletableFuture<List<Order>>> monthlyFutures = monthlyDateStrings.stream()
                             .map(day -> retestStrategy.startStrategy(symbol, day))
                             .toList();
 
