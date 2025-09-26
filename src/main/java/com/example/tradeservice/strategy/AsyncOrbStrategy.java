@@ -28,10 +28,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 import static com.example.tradeservice.strategy.enums.StrategyMode.LIVE;
+import static com.example.tradeservice.strategy.enums.TradingState.MONITORING_FOR_BREAKOUT;
+import static com.example.tradeservice.strategy.enums.TradingState.MONITORING_FOR_RETEST;
 import static com.example.tradeservice.strategy.utils.FileUtils.writeToLog;
 
 @Component
@@ -59,7 +59,7 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
         var date = context.date();
         var symbol = context.symbol();
         date = Optional.ofNullable(date)
-                        .orElseGet(() -> LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+                .orElseGet(() -> LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
 
         try {
             SymbolTradingState state = context.state();
@@ -100,6 +100,10 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
         if (Objects.isNull(context)) {
             log.info("Context has not been initialized yet");
             return CompletableFuture.completedFuture(Collections.emptyList());
+        } else if (!List.of(MONITORING_FOR_BREAKOUT, MONITORING_FOR_RETEST)
+                .contains(context.state().getCurrentState())) {
+            log.info("Current state is not for monitoring yet");
+            return CompletableFuture.completedFuture(Collections.emptyList());
         }
         String date = context.date();
         var symbol = context.symbol();
@@ -113,9 +117,9 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
 
             TwelveCandleBar oneMinBar = fetchOneMinuteCandle(symbol, date);
             if (oneMinBar != null) {
-                if (state.getCurrentState() == TradingState.MONITORING_FOR_BREAKOUT) {
+                if (state.getCurrentState() == MONITORING_FOR_BREAKOUT) {
                     handleBreakoutMonitoring(symbol, state, oneMinBar);
-                } else if (state.getCurrentState() == TradingState.MONITORING_FOR_RETEST) {
+                } else if (state.getCurrentState() == MONITORING_FOR_RETEST) {
                     return handleRetestMonitoring(symbol, state, oneMinBar);
                 }
 
@@ -129,14 +133,6 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
 
         return CompletableFuture.completedFuture(Collections.emptyList());
     }
-
-    public boolean shouldMonitorSymbol(SymbolTradingState state) {
-        if (state == null) return false;
-
-        return state.getCurrentState() == TradingState.MONITORING_FOR_BREAKOUT ||
-                state.getCurrentState() == TradingState.MONITORING_FOR_RETEST;
-    }
-
 
     private void initializeSymbolForNewTradingDay(String symbol, SymbolTradingState state) {
         state.reset();
@@ -181,7 +177,7 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
     }
 
     private void transitionToBreakoutMonitoring(String symbol, SymbolTradingState state) {
-        state.setCurrentState(TradingState.MONITORING_FOR_BREAKOUT);
+        state.setCurrentState(MONITORING_FOR_BREAKOUT);
         state.setBreakoutStartTime(LocalDateTime.now());
         state.getOneMinuteBreakoutBars().clear();
 
@@ -234,7 +230,7 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
         );
 
         state.setBreakoutData(breakoutData);
-        state.setCurrentState(TradingState.MONITORING_FOR_RETEST);
+        state.setCurrentState(MONITORING_FOR_RETEST);
         state.setRetestStartTime(LocalDateTime.now());
 
 
@@ -298,7 +294,7 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
     // Async helper method for order processing
     @Async("strategyExecutor")
     public CompletableFuture<List<Order>> processEntryAsync(String symbol, BigDecimal entryPrice,
-                                                     BigDecimal stopPrice, String testDate) {
+                                                            BigDecimal stopPrice, String testDate) {
         try {
             log.info("[{}] Processing entry order - Entry: {}, Stop: {}",
                     symbol, entryPrice, stopPrice);

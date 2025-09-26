@@ -1,6 +1,5 @@
 package com.example.tradeservice.strategy;
 
-import com.example.tradeservice.strategy.model.SymbolTradingState;
 import com.example.tradeservice.strategy.model.TradingContext;
 import com.ib.client.Order;
 
@@ -12,7 +11,5 @@ public interface AsyncTradingStrategy {
     CompletableFuture<TradingContext> startStrategy(TradingContext context);
 
     CompletableFuture<List<Order>> onTick(TradingContext context);
-
-    boolean shouldMonitorSymbol(SymbolTradingState state);
 
 }

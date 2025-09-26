@@ -20,6 +20,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static com.example.tradeservice.strategy.enums.TradingState.MONITORING_FOR_BREAKOUT;
+import static com.example.tradeservice.strategy.enums.TradingState.MONITORING_FOR_RETEST;
+
 @Slf4j
 @Service
 public class RetestAsyncTradingStrategy {
@@ -66,7 +69,8 @@ public class RetestAsyncTradingStrategy {
 //        if (orbService.isBreak(symbol + date)) {
 //            return CompletableFuture.completedFuture(null);
 //        }
-        if (maxIterations <= 0 || !asyncOrbStrategy.shouldMonitorSymbol(context.state())) {
+        var currentState = context.state().getCurrentState();
+        if (maxIterations <= 0 || !List.of(MONITORING_FOR_BREAKOUT, MONITORING_FOR_RETEST).contains(currentState)) {
             symbolContexts.remove(context.symbol());
             return CompletableFuture.completedFuture(Collections.emptyList());
         }
