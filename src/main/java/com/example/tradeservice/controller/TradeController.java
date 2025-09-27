@@ -9,8 +9,8 @@ import com.example.tradeservice.model.SymbolLookup;
 import com.example.tradeservice.model.TradeData;
 import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.service.TradeDataService;
-import com.example.tradeservice.service.impl.YearlyHistoricalDataService;
-import com.example.tradeservice.strategy.RetestAsyncTradingStrategy;
+import com.example.tradeservice.service.csv.YearlyHistoricalDataService;
+import com.example.tradeservice.backtest.BacktestTradingStrategy;
 import com.ib.client.Order;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +29,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
-import static com.example.tradeservice.service.impl.YearlyHistoricalDataService.isNonTradingDay;
+import static com.example.tradeservice.service.csv.YearlyHistoricalDataService.isNonTradingDay;
 
 @Slf4j
 @CrossOrigin(origins = "*")
@@ -43,7 +43,7 @@ public class TradeController {
     private final FinnhubClient finnhubClient;
     private final YearlyHistoricalDataService historicalDataService;
 
-    private final RetestAsyncTradingStrategy retestStrategy;
+    private final BacktestTradingStrategy retestStrategy;
 
     // WebSocket subscription management
     @PostMapping("/subscribe/{symbol}")

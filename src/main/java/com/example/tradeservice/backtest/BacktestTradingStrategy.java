@@ -1,7 +1,9 @@
-package com.example.tradeservice.strategy;
+package com.example.tradeservice.backtest;
 
 import com.example.tradeservice.model.TwelveCandleBar;
 import com.example.tradeservice.model.enums.TimeFrame;
+import com.example.tradeservice.service.csv.CsvService;
+import com.example.tradeservice.strategy.AsyncTradingStrategy;
 import com.example.tradeservice.strategy.dataclient.StockDataClient;
 import com.example.tradeservice.strategy.enums.StrategyMode;
 import com.example.tradeservice.strategy.model.SymbolTradingState;
@@ -25,32 +27,53 @@ import static com.example.tradeservice.strategy.enums.TradingState.MONITORING_FO
 
 @Slf4j
 @Service
-public class RetestAsyncTradingStrategy {
+public class BacktestTradingStrategy {
 
     // Thread-safe state tracking for multiple symbols
     private final Map<String, TradingContext> symbolContexts = new ConcurrentHashMap<>();
 
     @Autowired
-    @Qualifier("csvDataStrategy")
-    private AsyncTradingStrategy asyncOrbStrategy;
+    @Qualifier("buyAndHoldStrategy")
+    private AsyncTradingStrategy strategy;
 
     @Autowired
     @Qualifier("csvData")
     private StockDataClient dataClient;
 
+    @Autowired
+    private CsvService csvService;
+
+    public void test(String symbol, String date) {
+
+        //
+        csvService.collectDayCsv(symbol, date);
+
+        int deposit = 15000;
+        Backtest backtest = new Backtest(deposit);
+        backtest.setLeverage(4);
+
+        // do the backtest
+        Backtest.Result result = backtest.run(strategy);
+    }
+
     @Async("strategyExecutor")
     public CompletableFuture<List<Order>> startStrategy(String symbol, String date) {
         new File("logs/" + symbol + "/break").mkdirs();
+        TradingContext context = TradingContext.builder()
+                .symbol(symbol)
+                .date(date)
+                .state(new SymbolTradingState())
+                .mode(StrategyMode.BACKTEST)
+                .build();
         return CompletableFuture
                 .runAsync(() -> dataClient.initializeCsvForDay(symbol, date))
-                .thenCompose(v -> asyncOrbStrategy.startStrategy(new TradingContext(symbol, date, new SymbolTradingState(),
-                        StrategyMode.BACKTEST)))
-                .thenCompose(context -> {
-                    if (context != null) {
-                        symbolContexts.put(context.symbol(), context);
-                        log.info("Saved context for symbol: {}", context.symbol());
+                .thenCompose(v -> strategy.startStrategy(context))
+                .thenCompose(ctx -> {
+                    if (ctx != null) {
+                        symbolContexts.put(ctx.getSymbol(), ctx);
+                        log.info("Saved context for symbol: {}", ctx.getSymbol());
                     }
-                    return onTick(context, 100);
+                    return onTick(ctx, 100);
                 })
 //                .thenCompose(isBreak -> {
 //                    if(!isBreak.isEmpty()) {
@@ -69,13 +92,13 @@ public class RetestAsyncTradingStrategy {
 //        if (orbService.isBreak(symbol + date)) {
 //            return CompletableFuture.completedFuture(null);
 //        }
-        var currentState = context.state().getCurrentState();
+        var currentState = context.getState().getCurrentState();
         if (maxIterations <= 0 || !List.of(MONITORING_FOR_BREAKOUT, MONITORING_FOR_RETEST).contains(currentState)) {
-            symbolContexts.remove(context.symbol());
+            symbolContexts.remove(context.getSymbol());
             return CompletableFuture.completedFuture(Collections.emptyList());
         }
 
-        return asyncOrbStrategy.onTick(context)
+        return strategy.onTick(context)
                 .thenCompose(v -> CompletableFuture.runAsync(() -> {
                     try {
                         Thread.sleep(100);

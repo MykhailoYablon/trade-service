@@ -43,6 +43,17 @@ public class TwelveDataClient implements StockDataClient {
                 .body(StockResponse.class);
     }
 
+    public String csvTimeSeries(String symbol) {
+        return restClient.get()
+                .uri(TIME_SERIES.url() + "?apikey=" + token
+                        + "&symbol=" + symbol.toUpperCase()
+                        + "&interval=" + TimeFrame.ONE_DAY.getTwelveFormat()
+                        + "&format=CSV"
+                )
+                .retrieve()
+                .body(String.class);
+    }
+
     @Override
     public void initializeCsvForDay(String symbol, String date) {
         //do nothing

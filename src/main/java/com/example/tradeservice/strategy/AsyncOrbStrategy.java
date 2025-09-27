@@ -56,13 +56,13 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
     @Async("strategyExecutor")
     @Override
     public CompletableFuture<TradingContext> startStrategy(TradingContext context) {
-        var date = context.date();
-        var symbol = context.symbol();
+        var date = context.getDate();
+        var symbol = context.getSymbol();
         date = Optional.ofNullable(date)
                 .orElseGet(() -> LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
 
         try {
-            SymbolTradingState state = context.state();
+            SymbolTradingState state = context.getState();
             if (state.getCurrentState() != TradingState.COLLECTING_OPENING_RANGE) {
                 initializeSymbolForNewTradingDay(symbol, state);
             }
@@ -84,7 +84,7 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
                     }
                 }
                 log.info("{} [{}] Waiting 5 minutes before next interval", date, symbol);
-                if (LIVE.equals(context.mode()) && i < 2)
+                if (LIVE.equals(context.getMode()) && i < 2)
                     Thread.sleep(5 * 60 * 1000); // 5 minutes
             }
         } catch (Exception e) {
@@ -101,18 +101,18 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
             log.info("Context has not been initialized yet");
             return CompletableFuture.completedFuture(Collections.emptyList());
         } else if (!List.of(MONITORING_FOR_BREAKOUT, MONITORING_FOR_RETEST)
-                .contains(context.state().getCurrentState())) {
+                .contains(context.getState().getCurrentState())) {
             log.info("Current state is not for monitoring yet");
             return CompletableFuture.completedFuture(Collections.emptyList());
         }
-        String date = context.date();
-        var symbol = context.symbol();
-        log.info("Context onTick = {}, {}, {}", context.symbol(), context.date(), context.state().getCurrentState());
+        String date = context.getDate();
+        var symbol = context.getSymbol();
+        log.info("Context onTick = {}, {}, {}", context.getSymbol(), context.getDate(), context.getState().getCurrentState());
 
         date = Optional.ofNullable(date)
                 .orElseGet(() -> LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
         try {
-            SymbolTradingState state = context.state();
+            SymbolTradingState state = context.getState();
             if (state == null) return CompletableFuture.completedFuture(Collections.emptyList());
 
             TwelveCandleBar oneMinBar = fetchOneMinuteCandle(symbol, date);
@@ -246,7 +246,8 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
                 openingHigh);
     }
 
-    private CompletableFuture<List<Order>> handleRetestMonitoring(String symbol, SymbolTradingState state, TwelveCandleBar oneMinBar) {
+    private CompletableFuture<List<Order>> handleRetestMonitoring(String symbol, SymbolTradingState state,
+                                                                  TwelveCandleBar oneMinBar) {
         OpeningRange openingRange = state.getOpeningRange();
         BigDecimal retestLevel = openingRange.high().add(RETEST_BUFFER);
 

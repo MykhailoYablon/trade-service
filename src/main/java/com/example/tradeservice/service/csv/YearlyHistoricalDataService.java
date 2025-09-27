@@ -1,8 +1,9 @@
-package com.example.tradeservice.service.impl;
+package com.example.tradeservice.service.csv;
 
 import com.example.tradeservice.strategy.dataclient.TwelveDataClient;
 import com.example.tradeservice.model.StockResponse;
 import com.example.tradeservice.model.enums.TimeFrame;
+import com.example.tradeservice.strategy.series.DoubleSeries;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,7 +23,7 @@ import java.util.stream.Collectors;
 public class YearlyHistoricalDataService {
 
     private final TwelveDataClient twelveDataClient;
-    private final HistoricalDataCsvService csvService;
+    private final CsvService csvService;
 
     private static final DateTimeFormatter API_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd H:mm:ss");
     private static final DateTimeFormatter RESPONSE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -60,7 +61,7 @@ public class YearlyHistoricalDataService {
                     int limitCandles = TimeFrame.FIVE_MIN.equals(timeFrame) ? 4 : 180;
                     int skip = TimeFrame.FIVE_MIN.equals(timeFrame) ? 1 : 15;
 
-                    List<StockResponse.Value> filteredData = limitFirstIntervalsPerDay(monthData, timeFrame, skip, limitCandles);
+                    List<StockResponse.Value> filteredData = limitFirstIntervalsPerDay(monthData, timeFrame);
 
                     csvService.exportToCsvTwelve(symbol, timeFrame, filteredData);
                     allFilteredDataSize += filteredData.size();
@@ -87,8 +88,17 @@ public class YearlyHistoricalDataService {
                 totalApiCalls, allFilteredDataSize);
     }
 
+    public DoubleSeries collectDayCsv(String symbol) {
+        String csv = twelveDataClient.csvTimeSeries(symbol);
+
+        return null;
+//        chunkData.stream()
+//                .map(e -> new DoubleSeries.)
+
+    }
+
     public List<StockResponse.Value> limitFirstIntervalsPerDay(List<StockResponse.Value> monthData,
-                                                               TimeFrame timeFrame, int skip, int limit) {
+                                                               TimeFrame timeFrame) {
         Map<LocalDate, List<StockResponse.Value>> dataByDate = monthData.stream()
                 .filter(data -> isTradingDay(parseDateTime(data.getDatetime()).toLocalDate()))
                 .collect(Collectors.groupingBy(
