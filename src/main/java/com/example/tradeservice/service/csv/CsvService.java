@@ -1,6 +1,5 @@
-package com.example.tradeservice.service.impl;
+package com.example.tradeservice.service.csv;
 
-import com.example.tradeservice.entity.HistoricalData;
 import com.example.tradeservice.model.StockResponse;
 import com.example.tradeservice.model.enums.TimeFrame;
 import org.springframework.stereotype.Service;
@@ -16,28 +15,10 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
-public class HistoricalDataCsvService {
+public class CsvService {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final String CSV_HEADER = "Stock Symbol,High,Low,Close,Date Time\n";
-
-    public void exportToCsv(HistoricalData data, String filePath) throws IOException {
-
-        try (PrintWriter writer = new PrintWriter(new FileWriter(filePath))) {
-            // Write header
-            writer.print(CSV_HEADER);
-
-            // Write data rows
-            writer.printf("%s,%s,%s,%s,%s,%s%n",
-                    escapeCsvValue(data.getPosition().getSymbol()),
-                    data.getTimeframe().toString(),
-                    data.getHigh().toString(),
-                    data.getLow().toString(),
-                    data.getClose().toString(),
-                    data.getTimestamp().format(DATE_FORMATTER)
-            );
-        }
-    }
 
     public void exportToCsvTwelve(String symbol, TimeFrame timeFrame,
                                   List<StockResponse.Value> dataList) {
@@ -72,24 +53,6 @@ public class HistoricalDataCsvService {
                 throw new RuntimeException(e);
             }
         });
-    }
-
-    public String generateCsvContent(List<HistoricalData> historicalDataList) {
-        StringBuilder csv = new StringBuilder();
-        csv.append(CSV_HEADER);
-
-        for (HistoricalData data : historicalDataList) {
-            csv.append(String.format("%s,%s,%s,%s,%s,%s%n",
-                    escapeCsvValue(data.getPosition().getSymbol()),
-                    data.getTimeframe().toString(),
-                    data.getHigh().toString(),
-                    data.getLow().toString(),
-                    data.getClose().toString(),
-                    data.getTimestamp().format(DATE_FORMATTER)
-            ));
-        }
-
-        return csv.toString();
     }
 
     private String escapeCsvValue(String value) {

@@ -3,12 +3,15 @@ package com.example.tradeservice.controller;
 import com.example.tradeservice.configuration.FinnhubClient;
 import com.example.tradeservice.handler.StockTradeWebSocketHandler;
 import com.example.tradeservice.handler.TradeUpdatedEvent;
-import com.example.tradeservice.model.*;
+import com.example.tradeservice.model.MarketStatus;
+import com.example.tradeservice.model.Quote;
+import com.example.tradeservice.model.SymbolLookup;
+import com.example.tradeservice.model.TradeData;
 import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.service.TradeDataService;
-import com.example.tradeservice.service.impl.YearlyHistoricalDataService;
-import com.example.tradeservice.strategy.CsvStockDataClient;
-import com.example.tradeservice.strategy.RetestStrategy;
+import com.example.tradeservice.service.csv.YearlyHistoricalDataService;
+import com.example.tradeservice.backtest.BacktestTradingStrategy;
+import com.ib.client.Order;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationListener;
@@ -23,9 +26,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
-import static com.example.tradeservice.service.impl.YearlyHistoricalDataService.isNonTradingDay;
+import static com.example.tradeservice.service.csv.YearlyHistoricalDataService.isNonTradingDay;
 
 @Slf4j
 @CrossOrigin(origins = "*")
@@ -37,9 +41,9 @@ public class TradeController {
     private final TradeDataService tradeDataService;
     private final StockTradeWebSocketHandler webSocketHandler;
     private final FinnhubClient finnhubClient;
-    private final CsvStockDataClient dataClient;
     private final YearlyHistoricalDataService historicalDataService;
-    private final RetestStrategy retestStrategy;
+
+    private final BacktestTradingStrategy retestStrategy;
 
     // WebSocket subscription management
     @PostMapping("/subscribe/{symbol}")
@@ -138,58 +142,61 @@ public class TradeController {
     }
 
     @GetMapping("/retest")
-    public void retestDay(@RequestParam String symbol) throws InterruptedException {
-        // Define the year
-        int year = 2025;
+    public void retestDay(@RequestParam String symbol, @RequestParam(required = false) String requestedDate) throws InterruptedException {
+        if (Objects.nonNull(requestedDate)) {
+            retestStrategy.startStrategy(symbol, requestedDate);
+        } else {
+            // Define the year
+            int year = 2025;
 
-        // Create formatter for the desired format
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            // Create formatter for the desired format
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-        // Start from January 1st
-        LocalDate startDate = LocalDate.of(year, 1, 1);
-        LocalDate endDate = LocalDate.of(year, 9, 5);
+            // Start from January 1st
+            LocalDate startDate = LocalDate.of(year, 1, 1);
+            LocalDate endDate = LocalDate.of(year, 9, 5);
 
-        // Process each month separately
-        LocalDate currentMonth = startDate.withDayOfMonth(1);
+            // Process each month separately
+            LocalDate currentMonth = startDate.withDayOfMonth(1);
 
-        while (!currentMonth.isAfter(endDate)) {
-            List<String> monthlyDateStrings = new ArrayList<>();
+            while (!currentMonth.isAfter(endDate)) {
+                List<String> monthlyDateStrings = new ArrayList<>();
 
-            // Get the last day of current month
-            LocalDate lastDayOfMonth = currentMonth.withDayOfMonth(currentMonth.lengthOfMonth());
-            LocalDate monthEndDate = lastDayOfMonth.isBefore(endDate) ? lastDayOfMonth : endDate;
+                // Get the last day of current month
+                LocalDate lastDayOfMonth = currentMonth.withDayOfMonth(currentMonth.lengthOfMonth());
+                LocalDate monthEndDate = lastDayOfMonth.isBefore(endDate) ? lastDayOfMonth : endDate;
 
-            // Collect all trading days in this month
-            LocalDate date = currentMonth;
-            while (!date.isAfter(monthEndDate)) {
-                if (!Boolean.TRUE.equals(isNonTradingDay(date))) {
-                    monthlyDateStrings.add(date.format(formatter));
+                // Collect all trading days in this month
+                LocalDate date = currentMonth;
+                while (!date.isAfter(monthEndDate)) {
+                    if (!Boolean.TRUE.equals(isNonTradingDay(date))) {
+                        monthlyDateStrings.add(date.format(formatter));
+                    }
+                    date = date.plusDays(1);
                 }
-                date = date.plusDays(1);
+
+                // Process this month's dates
+                if (!monthlyDateStrings.isEmpty()) {
+                    log.info("Processing {} trading days for {}",
+                            monthlyDateStrings.size(),
+                            currentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")));
+
+                    List<CompletableFuture<List<Order>>> monthlyFutures = monthlyDateStrings.stream()
+                            .map(day -> retestStrategy.startStrategy(symbol, day))
+                            .toList();
+
+                    // Wait for this month to complete before moving to next month
+                    LocalDate finalCurrentMonth = currentMonth;
+                    CompletableFuture.allOf(monthlyFutures.toArray(new CompletableFuture[0]))
+                            .thenRun(() -> log.debug("Completed monitoring for {}",
+                                    finalCurrentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy"))))
+                            .join(); // Wait for completion before proceeding to next month
+                }
+
+                // Move to next month
+                currentMonth = currentMonth.plusMonths(1);
             }
-
-            // Process this month's dates
-            if (!monthlyDateStrings.isEmpty()) {
-                log.info("Processing {} trading days for {}",
-                        monthlyDateStrings.size(),
-                        currentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")));
-
-                List<CompletableFuture<Void>> monthlyFutures = monthlyDateStrings.stream()
-                        .map(day -> retestStrategy.startStrategy(symbol, day))
-                        .toList();
-
-                // Wait for this month to complete before moving to next month
-                LocalDate finalCurrentMonth = currentMonth;
-                CompletableFuture.allOf(monthlyFutures.toArray(new CompletableFuture[0]))
-                        .thenRun(() -> log.debug("Completed monitoring for {}",
-                                finalCurrentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy"))))
-                        .join(); // Wait for completion before proceeding to next month
-            }
-
-            // Move to next month
-            currentMonth = currentMonth.plusMonths(1);
         }
-
     }
 
     @GetMapping("/csv")

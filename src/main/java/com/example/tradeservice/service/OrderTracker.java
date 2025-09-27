@@ -13,7 +13,10 @@ import java.util.List;
 public interface OrderTracker {
     void placeLimitOrder(Contract contract, String action, BigDecimal quantity, double price);
 
+    Order placeBuyAndHoldMarketOrder(Contract contract, Types.Action action, double quantity);
+
     List<Order> placeMarketOrder(Contract contract, Types.Action action, double quantity, BigDecimal stopPrice);
+    List<Order> placeMarketOrder(Types.Action action, double quantity, BigDecimal stopPrice);
 
     void setOrder(Contract contract, Order order, OrderState orderState);
 

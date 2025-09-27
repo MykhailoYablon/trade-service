@@ -64,6 +64,30 @@ public class OrderTrackerImpl implements OrderTracker {
         return complexBracketOrder;
     }
 
+    public Order placeBuyAndHoldMarketOrder(Contract contract, Types.Action action, double quantity) {
+        Order order = new Order();
+        orderId += 1;
+
+        // Basic order properties
+        order.orderId(orderId);
+        order.action(action);
+        order.orderType(OrderType.MKT);
+        order.totalQuantity(Decimal.get(quantity));
+
+        // Enable bracket order transmission
+        order.transmit(false);
+
+        ibClient.placeOrder(++orderId, contract, order);
+
+        return order;
+
+    }
+
+    public List<Order> placeMarketOrder(Types.Action action, double quantity, BigDecimal stopPrice) {
+        int baseOrderId = ++orderId;
+        return createComplexBracketOrder(baseOrderId, stopPrice);
+    }
+
     @Override
     public void setOrder(Contract contract, Order order, OrderState orderState) {
         orders.put(order.permId(), new OrderHolder(order.permId(), order, contract, orderState));
@@ -121,7 +145,8 @@ public class OrderTrackerImpl implements OrderTracker {
         orders.add(stopLossOrder);
 
         // 3. Create Take Profit Child Order
-        Order takeProfitOrder = createTakeProfitOrder(config, baseOrderId + 2, baseOrderId, stopPrice.add(BigDecimal.valueOf(defaultTakeProfitRange)));
+        Order takeProfitOrder = createTakeProfitOrder(config, baseOrderId + 2, baseOrderId,
+                stopPrice.add(BigDecimal.valueOf(defaultTakeProfitRange)));
         orders.add(takeProfitOrder);
 
         return orders;

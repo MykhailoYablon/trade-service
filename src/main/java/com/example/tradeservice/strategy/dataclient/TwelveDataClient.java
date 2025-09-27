@@ -1,15 +1,16 @@
-package com.example.tradeservice.configuration;
+package com.example.tradeservice.strategy.dataclient;
 
 import com.example.tradeservice.model.StockResponse;
 import com.example.tradeservice.model.TwelveCandleBar;
 import com.example.tradeservice.model.enums.TimeFrame;
-import com.example.tradeservice.strategy.StockDataClient;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -19,8 +20,10 @@ import static com.example.tradeservice.model.enums.Endpoint.TWELVE_QUOTE;
 @NoArgsConstructor
 @Getter
 @Setter
-@Component
+@Component("twelveData")
+@Qualifier("twelveData")
 @Slf4j
+@Primary
 public class TwelveDataClient implements StockDataClient {
 
     @Autowired
@@ -38,6 +41,17 @@ public class TwelveDataClient implements StockDataClient {
                 )
                 .retrieve()
                 .body(StockResponse.class);
+    }
+
+    public String csvTimeSeries(String symbol) {
+        return restClient.get()
+                .uri(TIME_SERIES.url() + "?apikey=" + token
+                        + "&symbol=" + symbol.toUpperCase()
+                        + "&interval=" + TimeFrame.ONE_DAY.getTwelveFormat()
+                        + "&format=CSV"
+                )
+                .retrieve()
+                .body(String.class);
     }
 
     @Override
