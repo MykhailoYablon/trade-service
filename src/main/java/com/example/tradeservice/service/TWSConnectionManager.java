@@ -8,7 +8,7 @@ import com.example.tradeservice.model.PositionHolder;
 import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.redis.ContractRepository;
 import com.example.tradeservice.repository.DataRequestRepository;
-import com.example.tradeservice.service.csv.CsvService;
+import com.example.tradeservice.service.csv.CsvServiceImpl;
 import com.example.tradeservice.service.impl.OrderTrackerImpl;
 import com.example.tradeservice.service.impl.PositionTracker;
 import com.example.tradeservice.service.impl.TimeSeriesHandler;
@@ -47,7 +47,7 @@ public class TWSConnectionManager implements EWrapper {
     private final TimeSeriesHandler timeSeriesHandler;
 
     @Autowired
-    private CsvService excelService;
+    private CsvServiceImpl excelService;
 
     // Connection parameters
     private static final String HOST = "127.0.0.1";

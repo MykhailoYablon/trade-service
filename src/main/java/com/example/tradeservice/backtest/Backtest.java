@@ -1,23 +1,26 @@
 package com.example.tradeservice.backtest;
 
+import com.example.tradeservice.backtest.series.DoubleSeries;
+import com.example.tradeservice.backtest.series.TimeSeries;
 import com.example.tradeservice.strategy.AsyncTradingStrategy;
 import com.example.tradeservice.strategy.enums.StrategyMode;
-import com.example.tradeservice.strategy.model.ClosedOrder;
-import com.example.tradeservice.strategy.model.Order;
 import com.example.tradeservice.strategy.model.SymbolTradingState;
 import com.example.tradeservice.strategy.model.TradingContext;
-import com.example.tradeservice.strategy.series.TimeSeries;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 @Getter
 @Setter
 public class Backtest {
+
+    DoubleSeries priceSeries;
+    String symbol;
 
     double deposit;
     double leverage = 1;
@@ -25,6 +28,8 @@ public class Backtest {
     AsyncTradingStrategy strategy;
     TradingContext context;
     Result result;
+
+    Iterator<TimeSeries.Entry<Double>> priceIterator;
 
     @Getter
     @Setter
@@ -38,8 +43,10 @@ public class Backtest {
 
     }
 
-    public Backtest(double deposit) {
+    public Backtest(double deposit, DoubleSeries doubleSeries, String symbol) {
         this.deposit = deposit;
+        this.priceSeries = doubleSeries;
+        this.symbol = symbol;
     }
 
     public Result run(AsyncTradingStrategy strategy) {
@@ -55,32 +62,39 @@ public class Backtest {
                 .date("date")
                 .state(new SymbolTradingState())
                 .mode(StrategyMode.BACKTEST)
+                .instruments(List.of(this.symbol))
+                .initialFunds(deposit)
+                .leverage(leverage)
                 .build();
 
+        priceIterator = priceSeries.iterator();
+
         strategy.startStrategy(context);
+
+
 
         nextStep();
     }
 
     public boolean nextStep() {
         //while redis has records for symbol
-        if (!mPriceIterator.hasNext()) {
-            finish();
-            return false;
-        }
+//        if (!mPriceIterator.hasNext()) {
+//            finish();
+//            return false;
+//        }
 
-        TimeSeries.Entry<List<Double>> entry = mPriceIterator.next();
+//        TimeSeries.Entry<List<Double>> entry = mPriceIterator.next();
 
-        context.getProfitLoss().add(context.getPL(), entry.getInstant());
-        context.getFundsHistory().add(context.getAvailableFunds(), entry.getInstant());
+//        context.getProfitLoss().add(context.getPL(), entry.getInstant());
+//        context.getFundsHistory().add(context.getAvailableFunds(), entry.getInstant());
         if (context.getAvailableFunds() < 0) {
             finish();
             return false;
         }
 
-        strategy.onTick();
-
-        context.mHistory.add(entry);
+//        strategy.onTick();
+//
+//        context.mHistory.add(entry);
 
         return true;
     }

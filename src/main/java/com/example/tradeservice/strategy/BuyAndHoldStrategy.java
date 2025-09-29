@@ -11,20 +11,17 @@ import com.example.tradeservice.strategy.model.TradingContext;
 import com.ib.client.Contract;
 import com.ib.client.Order;
 import com.ib.client.Types;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-@Service
-@AllArgsConstructor
+@Component
 public class BuyAndHoldStrategy implements AsyncTradingStrategy {
 
     Map<String, Order> orders;
@@ -51,7 +48,7 @@ public class BuyAndHoldStrategy implements AsyncTradingStrategy {
         var symbol = context.getSymbol();
         var date = context.getDate();
 
-        TwelveCandleBar oneMinBar = dataClient.quoteWithInterval(symbol, TimeFrame.FIVE_MIN, date);
+        TwelveCandleBar oneMinBar = dataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN, date);
 
         BigDecimal suggestedStop = new BigDecimal(oneMinBar.getLow()).subtract(new BigDecimal("0.01"));
 
@@ -60,7 +57,7 @@ public class BuyAndHoldStrategy implements AsyncTradingStrategy {
                 .orElse(null);
 
 
-        Order order = orderTracker.placeBuyAndHoldMarketOrder(contract, Types.Action.BUY, 100);
+        Order order = orderTracker.placeBuyAndHoldMarketOrder(contract, Types.Action.BUY, 1);
 
         return CompletableFuture.completedFuture(List.of(order));
     }

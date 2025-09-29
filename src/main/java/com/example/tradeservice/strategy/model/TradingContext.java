@@ -1,7 +1,11 @@
 package com.example.tradeservice.strategy.model;
 
+import com.example.tradeservice.backtest.ClosedOrder;
+import com.example.tradeservice.backtest.Order;
+import com.example.tradeservice.backtest.SimpleClosedOrder;
+import com.example.tradeservice.backtest.SimpleOrder;
+import com.example.tradeservice.backtest.series.DoubleSeries;
 import com.example.tradeservice.strategy.enums.StrategyMode;
-import com.example.tradeservice.strategy.series.DoubleSeries;
 import lombok.Builder;
 import lombok.Data;
 
@@ -12,21 +16,27 @@ import java.util.List;
 @Data
 @Builder
 public class TradingContext {
+    Instant instant;
+    List<Double> prices;
+    List<String> instruments;
+
+    private DoubleSeries profitLoss = new DoubleSeries("pl");
+    DoubleSeries fundsHistory = new DoubleSeries("funds");
+
     private String symbol;
     private String date;
     private SymbolTradingState state;
     private StrategyMode mode;
-    private DoubleSeries profitLoss = new DoubleSeries("pl");
-    DoubleSeries fundsHistory = new DoubleSeries("funds");
+
+
     double initialFunds;
     double commissions;
+    int orderId = 1;
     double leverage;
     double closedPl = 0;
-//    List<SimpleClosedOrder> mClosedOrders = new ArrayList<>();
+    //    List<SimpleClosedOrder> mClosedOrders = new ArrayList<>();
     List<ClosedOrder> closedOrders = new ArrayList<>();
-    List<Double> prices;
-    List<String> instruments;
-    Instant instant;
+
 
     List<Order> orders = new ArrayList<>();
 
@@ -48,10 +58,10 @@ public class TradingContext {
     }
 
     public ClosedOrder close(Order order) {
-        Order simpleOrder = (Order) order;
+        SimpleOrder simpleOrder = (SimpleOrder) order;
         orders.remove(simpleOrder);
         double price = getLastPrice(order.getInstrument());
-        ClosedOrder closedOrder = new ClosedOrder(simpleOrder, price, getInstant());
+        SimpleClosedOrder closedOrder = new SimpleClosedOrder(simpleOrder, price, getInstant());
         closedOrders.add(closedOrder);
         closedPl += closedOrder.getPl();
         commissions += calculateCommission(order);

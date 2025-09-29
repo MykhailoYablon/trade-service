@@ -1,4 +1,4 @@
-package com.example.tradeservice.strategy.series;
+package com.example.tradeservice.backtest.series;
 
 import java.util.ArrayList;
 import java.util.Collection;

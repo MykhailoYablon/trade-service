@@ -201,7 +201,9 @@ public class TradeController {
 
     @GetMapping("/csv")
     public void generateCsv(@RequestParam String symbol) {
-        historicalDataService.collectYearlyDataEfficiently(symbol, TimeFrame.FIVE_MIN, 2025);
-        historicalDataService.collectYearlyDataEfficiently(symbol, TimeFrame.ONE_MIN, 2025);
+//        historicalDataService.collectYearlyDataEfficiently(symbol, TimeFrame.FIVE_MIN, 2025);
+//        historicalDataService.collectYearlyDataEfficiently(symbol, TimeFrame.ONE_MIN, 2025);
+
+        historicalDataService.collectYearlyDataPerDay(symbol);
     }
 }

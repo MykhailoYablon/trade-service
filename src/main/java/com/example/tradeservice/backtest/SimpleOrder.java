@@ -1,11 +1,9 @@
 package com.example.tradeservice.backtest;
 
 
-import com.example.tradeservice.strategy.model.Order;
-
 import java.time.Instant;
 
-class SimpleOrder implements Order {
+public class SimpleOrder implements Order {
     int id;
     int amount;
     double openPrice;

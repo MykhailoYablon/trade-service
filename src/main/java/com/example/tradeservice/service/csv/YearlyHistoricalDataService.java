@@ -3,7 +3,6 @@ package com.example.tradeservice.service.csv;
 import com.example.tradeservice.strategy.dataclient.TwelveDataClient;
 import com.example.tradeservice.model.StockResponse;
 import com.example.tradeservice.model.enums.TimeFrame;
-import com.example.tradeservice.strategy.series.DoubleSeries;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +22,7 @@ import java.util.stream.Collectors;
 public class YearlyHistoricalDataService {
 
     private final TwelveDataClient twelveDataClient;
-    private final CsvService csvService;
+    private final CsvServiceImpl csvServiceImpl;
 
     private static final DateTimeFormatter API_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd H:mm:ss");
     private static final DateTimeFormatter RESPONSE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -57,13 +56,9 @@ public class YearlyHistoricalDataService {
                 }
 
                 if (!monthData.isEmpty()) {
-                    // Filter to get only required intervals per trading day
-                    int limitCandles = TimeFrame.FIVE_MIN.equals(timeFrame) ? 4 : 180;
-                    int skip = TimeFrame.FIVE_MIN.equals(timeFrame) ? 1 : 15;
-
                     List<StockResponse.Value> filteredData = limitFirstIntervalsPerDay(monthData, timeFrame);
 
-                    csvService.exportToCsvTwelve(symbol, timeFrame, filteredData);
+                    csvServiceImpl.exportToCsvTwelve(symbol, timeFrame, filteredData);
                     allFilteredDataSize += filteredData.size();
 
                     log.info("Month {}: Retrieved {} records, filtered to {} records",
@@ -88,10 +83,16 @@ public class YearlyHistoricalDataService {
                 totalApiCalls, allFilteredDataSize);
     }
 
-    public DoubleSeries collectDayCsv(String symbol) {
+    public void collectYearlyDataPerDay(String symbol) {
         String csv = twelveDataClient.csvTimeSeries(symbol);
 
-        return null;
+        log.info("Got csv");
+
+
+
+        csvServiceImpl.writeDayCsv(symbol, csv);
+
+//        return null;
 //        chunkData.stream()
 //                .map(e -> new DoubleSeries.)
 

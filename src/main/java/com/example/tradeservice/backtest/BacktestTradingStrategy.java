@@ -1,8 +1,8 @@
 package com.example.tradeservice.backtest;
 
-import com.example.tradeservice.model.TwelveCandleBar;
-import com.example.tradeservice.model.enums.TimeFrame;
+import com.example.tradeservice.backtest.series.DoubleSeries;
 import com.example.tradeservice.service.csv.CsvService;
+import com.example.tradeservice.service.csv.CsvServiceImpl;
 import com.example.tradeservice.strategy.AsyncTradingStrategy;
 import com.example.tradeservice.strategy.dataclient.StockDataClient;
 import com.example.tradeservice.strategy.enums.StrategyMode;
@@ -43,17 +43,22 @@ public class BacktestTradingStrategy {
     @Autowired
     private CsvService csvService;
 
+    @Autowired
+    private CsvServiceImpl csvServiceImpl;
+
     public void test(String symbol, String date) {
 
         //
-        csvService.collectDayCsv(symbol, date);
+        DoubleSeries doubleSeries = csvServiceImpl.readDoubleSeries(symbol);
 
         int deposit = 15000;
-        Backtest backtest = new Backtest(deposit);
+        Backtest backtest = new Backtest(deposit, doubleSeries, symbol);
         backtest.setLeverage(4);
 
         // do the backtest
         Backtest.Result result = backtest.run(strategy);
+
+
     }
 
     @Async("strategyExecutor")
@@ -66,7 +71,7 @@ public class BacktestTradingStrategy {
                 .mode(StrategyMode.BACKTEST)
                 .build();
         return CompletableFuture
-                .runAsync(() -> dataClient.initializeCsvForDay(symbol, date))
+                .runAsync(() -> csvService.initializeCsvForDay(symbol, date))
                 .thenCompose(v -> strategy.startStrategy(context))
                 .thenCompose(ctx -> {
                     if (ctx != null) {
@@ -75,12 +80,6 @@ public class BacktestTradingStrategy {
                     }
                     return onTick(ctx, 100);
                 })
-//                .thenCompose(isBreak -> {
-//                    if(!isBreak.isEmpty()) {
-//                        checkResult(symbol, date);
-//                    }
-//                    return new CompletableFuture<Void>();
-//                })
                 .exceptionally(e -> {
                     log.error("[{}] Error monitoring for breakout/retest", symbol, e);
                     return null;
@@ -89,9 +88,6 @@ public class BacktestTradingStrategy {
 
     public CompletableFuture<List<Order>> onTick(TradingContext context, int maxIterations) {
 
-//        if (orbService.isBreak(symbol + date)) {
-//            return CompletableFuture.completedFuture(null);
-//        }
         var currentState = context.getState().getCurrentState();
         if (maxIterations <= 0 || !List.of(MONITORING_FOR_BREAKOUT, MONITORING_FOR_RETEST).contains(currentState)) {
             symbolContexts.remove(context.getSymbol());
@@ -109,47 +105,4 @@ public class BacktestTradingStrategy {
                 .thenCompose(v -> onTick(context, maxIterations - 1));
     }
 
-//    private CompletableFuture<Void> collectOpeningRangeDataSequentially(String symbol, String date, int count) {
-//        if (count <= 0) {
-//            return CompletableFuture.completedFuture(null);
-//        }
-//        return asyncOrbStrategy.startStrategy(new TradingContext(symbol, date, new SymbolTradingState(), StrategyMode.BACKTEST))
-//                .thenCompose(v -> CompletableFuture.runAsync(() -> {
-//                    try {
-//                        Thread.sleep(100);
-//                    } catch (InterruptedException e) {
-//                        Thread.currentThread().interrupt();
-//                    }
-//                }))
-//                .thenCompose(v -> collectOpeningRangeDataSequentially(symbol, date, count - 1));
-//    }
-
-    private CompletableFuture<Void> checkResult(String symbol, String date) {
-        log.info("Checking profit");
-        return this.checkMinute(symbol, date)
-                .thenCompose(v -> CompletableFuture.runAsync(() -> {
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                }))
-                .thenCompose(v -> checkResult(symbol, date));
-    }
-
-    private CompletableFuture<Void> checkMinute(String symbol, String date) {
-        TwelveCandleBar oneMinBar;
-        try {
-            oneMinBar = dataClient.quoteWithInterval(symbol, TimeFrame.ONE_MIN, date);
-            if (oneMinBar != null) {
-//                writeToLog(symbol + "/" + state.getTestDate() + ".log",
-//                        String.format("[%s] One min bar added: Close=%s > Opening High=%s",
-//                                symbol, oneMinBar.getClose(), state.getOpeningRange().high()));
-            }
-        } catch (Exception e) {
-            log.error("[{}] Error monitoring for breakout/retest", symbol, e);
-        }
-
-        return CompletableFuture.completedFuture(null);
-    }
 }

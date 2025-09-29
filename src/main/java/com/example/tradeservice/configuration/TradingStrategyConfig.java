@@ -31,7 +31,7 @@ public class TradingStrategyConfig {
 
     @Bean
     @Qualifier("buyAndHoldStrategy")
-    public AsyncTradingStrategy buyAndHoldStrategy(@Qualifier("csvData") StockDataClient csvDataClient,
+    public BuyAndHoldStrategy buyAndHoldStrategy(@Qualifier("csvData") StockDataClient csvDataClient,
                                                 OrderTracker orderTracker,
                                                 PositionTracker positionTracker) {
         return new BuyAndHoldStrategy(csvDataClient, orderTracker, positionTracker);
