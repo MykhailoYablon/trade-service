@@ -141,6 +141,11 @@ public class TradeController {
         return finnhubClient.search(symbol);
     }
 
+    @GetMapping("/backtest")
+    public void backtest(@RequestParam String symbol) {
+        retestStrategy.test(symbol);
+    }
+
     @GetMapping("/retest")
     public void retestDay(@RequestParam String symbol, @RequestParam(required = false) String requestedDate) throws InterruptedException {
         if (Objects.nonNull(requestedDate)) {

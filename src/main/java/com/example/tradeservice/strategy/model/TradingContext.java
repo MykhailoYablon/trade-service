@@ -17,11 +17,12 @@ import java.util.List;
 @Builder
 public class TradingContext {
     Instant instant;
-    List<Double> prices;
+    Double price;
     List<String> instruments;
 
-    private DoubleSeries profitLoss = new DoubleSeries("pl");
-    DoubleSeries fundsHistory = new DoubleSeries("funds");
+    public DoubleSeries profitLoss = new DoubleSeries("pl");
+    public DoubleSeries fundsHistory = new DoubleSeries("funds");
+    public DoubleSeries mHistory;
 
     private String symbol;
     private String date;
@@ -41,7 +42,7 @@ public class TradingContext {
     List<Order> orders = new ArrayList<>();
 
     public double getPL() {
-        return closedPl + orders.stream().mapToDouble(t -> t.calculatePl(getLastPrice(t.getInstrument())))
+        return closedPl + orders.stream().mapToDouble(t -> t.calculatePl(getLastPrice()))
                 .sum() - commissions;
     }
 
@@ -53,14 +54,25 @@ public class TradingContext {
         return initialFunds + getPL();
     }
 
-    public double getLastPrice(String instrument) {
-        return prices.get(instruments.indexOf(instrument));
+    public double getLastPrice() {
+        return price;
+    }
+
+    public Order order(String instrument, boolean buy, int amount) {
+
+        double price = getLastPrice();
+        SimpleOrder order = new SimpleOrder(orderId++, instrument, getInstant(), price, amount * (buy ? 1 : -1));
+        orders.add(order);
+
+        commissions += calculateCommission(order);
+
+        return order;
     }
 
     public ClosedOrder close(Order order) {
         SimpleOrder simpleOrder = (SimpleOrder) order;
         orders.remove(simpleOrder);
-        double price = getLastPrice(order.getInstrument());
+//        double price = getLastPrice(order.getInstrument());
         SimpleClosedOrder closedOrder = new SimpleClosedOrder(simpleOrder, price, getInstant());
         closedOrders.add(closedOrder);
         closedPl += closedOrder.getPl();

@@ -1,13 +1,19 @@
 package com.example.tradeservice.service.csv;
 
 import com.example.tradeservice.backtest.series.DoubleSeries;
+import com.example.tradeservice.backtest.series.TimeSeries;
 import com.example.tradeservice.model.StockResponse;
 import com.example.tradeservice.model.TwelveCandleBar;
 import com.example.tradeservice.model.enums.TimeFrame;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.opencsv.CSVParser;
+import com.opencsv.CSVParserBuilder;
+import com.opencsv.CSVReader;
+import com.opencsv.CSVReaderBuilder;
 import com.opencsv.bean.CsvToBean;
 import com.opencsv.bean.CsvToBeanBuilder;
+import com.opencsv.exceptions.CsvException;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
@@ -15,11 +21,11 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,6 +34,8 @@ import java.util.stream.Collectors;
 public class CsvServiceImpl implements CsvService {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter DAY_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
     private static final String CSV_HEADER = "Stock Symbol,High,Low,Close,Date Time\n";
     private static final String DELIMITER = ";";
 
@@ -109,27 +117,37 @@ public class CsvServiceImpl implements CsvService {
     }
 
     public DoubleSeries readDoubleSeries(String symbol) {
+        List<TimeSeries.Entry<Double>> entries = new ArrayList<>();
+        String filePath = "exports/" + symbol + "/day_data.csv";
 
-        String fileName = "exports/" + symbol + "/day_data.csv";
-        try {
-            ClassPathResource resource = new ClassPathResource(fileName);
-            Reader reader = new InputStreamReader(resource.getInputStream());
+        CSVParser parser = new CSVParserBuilder()
+                .withSeparator(';')
+                .build();
 
-            CsvToBean<DoubleSeries> csvToBean = new CsvToBeanBuilder<DoubleSeries>(reader)
-                    .withType(DoubleSeries.class)
-                    .withIgnoreLeadingWhiteSpace(true)
-                    .build();
+        try (CSVReader reader = new CSVReaderBuilder(new FileReader(filePath))
+                .withCSVParser(parser)
+                .build()) {
+            List<String[]> rows = reader.readAll();
 
-            List<DoubleSeries> data = csvToBean.parse();
+            // Skip header row
+            for (int i = 1; i < rows.size(); i++) {
+                String[] row = rows.get(i);
 
-            reader.close();
+                // Parse datetime
+                LocalDate date = LocalDate.parse(row[0], DAY_FORMATTER);
+                Instant instant = date.atStartOfDay(ZoneOffset.UTC).toInstant();
 
-            return data;
-        } catch (Exception e) {
-            log.info("No such file {}", fileName);
-            return Collections.emptyList();
+                // Parse close value
+                Double closeValue = Double.parseDouble(row[1]);
+
+                // Create entry
+                entries.add(new TimeSeries.Entry<>(closeValue, instant));
+            }
+        } catch (IOException | CsvException ex) {
+            throw new RuntimeException(ex);
         }
 
+        return new DoubleSeries(entries, symbol).toAscending();
 
     }
 

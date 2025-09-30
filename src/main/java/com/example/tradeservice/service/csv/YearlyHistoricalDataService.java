@@ -92,6 +92,7 @@ public class YearlyHistoricalDataService {
 
         csvServiceImpl.writeDayCsv(symbol, csv);
 
+        log.info("Data fetched and saved");
 //        return null;
 //        chunkData.stream()
 //                .map(e -> new DoubleSeries.)

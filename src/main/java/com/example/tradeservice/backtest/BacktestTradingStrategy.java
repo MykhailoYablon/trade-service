@@ -46,7 +46,7 @@ public class BacktestTradingStrategy {
     @Autowired
     private CsvServiceImpl csvServiceImpl;
 
-    public void test(String symbol, String date) {
+    public void test(String symbol) {
 
         //
         DoubleSeries doubleSeries = csvServiceImpl.readDoubleSeries(symbol);
@@ -58,7 +58,7 @@ public class BacktestTradingStrategy {
         // do the backtest
         Backtest.Result result = backtest.run(strategy);
 
-
+        log.info("Result - {}", result.pl);
     }
 
     @Async("strategyExecutor")

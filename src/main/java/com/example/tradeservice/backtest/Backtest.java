@@ -36,6 +36,7 @@ public class Backtest {
     @AllArgsConstructor
     public static class Result {
         double pl;
+        DoubleSeries priceSeries;
         List<ClosedOrder> orders;
         double initialFund;
         double finalValue;
@@ -58,13 +59,18 @@ public class Backtest {
     public void initialize(AsyncTradingStrategy strategy) {
         this.strategy = strategy;
         this.context = TradingContext.builder()
-                .symbol("symbol")
+                .symbol(this.symbol)
                 .date("date")
                 .state(new SymbolTradingState())
                 .mode(StrategyMode.BACKTEST)
                 .instruments(List.of(this.symbol))
                 .initialFunds(deposit)
                 .leverage(leverage)
+                .mHistory(new DoubleSeries(this.symbol))
+                .orders(new ArrayList<>())
+                .profitLoss(new DoubleSeries("pl"))
+                .fundsHistory(new DoubleSeries("funds"))
+                .closedOrders(new ArrayList<>())
                 .build();
 
         priceIterator = priceSeries.iterator();
@@ -77,24 +83,27 @@ public class Backtest {
     }
 
     public boolean nextStep() {
-        //while redis has records for symbol
-//        if (!mPriceIterator.hasNext()) {
-//            finish();
-//            return false;
-//        }
+        // while redis has records for symbol
+        if (!priceIterator.hasNext()) {
+            finish();
+            return false;
+        }
 
-//        TimeSeries.Entry<List<Double>> entry = mPriceIterator.next();
+        TimeSeries.Entry<Double> entry = priceIterator.next();
+        context.setPrice(entry.getItem());
+        context.setInstant(entry.getInstant());
 
-//        context.getProfitLoss().add(context.getPL(), entry.getInstant());
-//        context.getFundsHistory().add(context.getAvailableFunds(), entry.getInstant());
+        context.profitLoss.add(context.getPL(), entry.getInstant());
+        context.fundsHistory.add(context.getAvailableFunds(), entry.getInstant());
+
         if (context.getAvailableFunds() < 0) {
             finish();
             return false;
         }
 
-//        strategy.onTick();
-//
-//        context.mHistory.add(entry);
+        strategy.onTick(context);
+
+        context.mHistory.add(entry);
 
         return true;
     }
@@ -104,11 +113,10 @@ public class Backtest {
             context.close(order);
         }
 
-//        strategy.onEnd();
-
         List<ClosedOrder> orders = Collections.unmodifiableList(context.getClosedOrders());
         result = new Result(context.getClosedPl(),
-//                context.getProfitLoss(), context.mFundsHistory,
+                context.getProfitLoss(),
+//                context.mFundsHistory,
                 orders, deposit,
                 deposit + context.getClosedPl(), context.getCommissions());
     }
