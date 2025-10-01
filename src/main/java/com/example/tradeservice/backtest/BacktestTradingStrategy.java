@@ -33,7 +33,7 @@ public class BacktestTradingStrategy {
     private final Map<String, TradingContext> symbolContexts = new ConcurrentHashMap<>();
 
     @Autowired
-    @Qualifier("buyAndHoldStrategy")
+    @Qualifier("csvDataStrategy")
     private AsyncTradingStrategy strategy;
 
     @Autowired
@@ -50,6 +50,8 @@ public class BacktestTradingStrategy {
 
         //
         DoubleSeries doubleSeries = csvServiceImpl.readDoubleSeries(symbol);
+        // we need to move this or modify DoubleSeries
+        csvService.initializeCsvForDay(symbol, "2025-09-05");
 
         int deposit = 15000;
         Backtest backtest = new Backtest(deposit, doubleSeries, symbol);

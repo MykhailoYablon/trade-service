@@ -60,7 +60,7 @@ public class Backtest {
         this.strategy = strategy;
         this.context = TradingContext.builder()
                 .symbol(this.symbol)
-                .date("date")
+                .date("2025-09-05")
                 .state(new SymbolTradingState())
                 .mode(StrategyMode.BACKTEST)
                 .instruments(List.of(this.symbol))
@@ -77,7 +77,12 @@ public class Backtest {
 
         strategy.startStrategy(context);
 
-
+        try {
+            // sleep for state to be changed
+            Thread.sleep(15000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
 
         nextStep();
     }

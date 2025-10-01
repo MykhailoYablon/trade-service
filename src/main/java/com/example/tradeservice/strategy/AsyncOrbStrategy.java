@@ -15,8 +15,10 @@ import com.ib.client.Contract;
 import com.ib.client.Order;
 import com.ib.client.Types;
 import lombok.extern.slf4j.Slf4j;
+import org.aspectj.weaver.ast.Or;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import java.io.File;
 import java.math.BigDecimal;
@@ -120,7 +122,7 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
                 if (state.getCurrentState() == MONITORING_FOR_BREAKOUT) {
                     handleBreakoutMonitoring(symbol, state, oneMinBar);
                 } else if (state.getCurrentState() == MONITORING_FOR_RETEST) {
-                    return handleRetestMonitoring(symbol, state, oneMinBar);
+                    return handleRetestMonitoring(context, oneMinBar);
                 }
 
                 writeToLog(symbol + "/" + state.getTestDate() + ".log",
@@ -246,26 +248,29 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
                 openingHigh);
     }
 
-    private CompletableFuture<List<Order>> handleRetestMonitoring(String symbol, SymbolTradingState state,
-                                                                  TwelveCandleBar oneMinBar) {
+    private CompletableFuture<List<Order>> handleRetestMonitoring(TradingContext context, TwelveCandleBar oneMinBar) {
+        SymbolTradingState state = context.getState();
+        String symbol = context.getSymbol();
         OpeningRange openingRange = state.getOpeningRange();
         BigDecimal retestLevel = openingRange.high().add(RETEST_BUFFER);
 
         // Check if low of candle stays above retest level (successful retest)
         // OR if close drops below opening high (deeper retest)
+        CompletableFuture<List<Order>> orders = new CompletableFuture<>();
         if (new BigDecimal(oneMinBar.getLow()).compareTo(retestLevel) >= 0) {
             // Shallow retest - price held above breakout level
             log.info("[{}] SHALLOW RETEST DETECTED - Low: {} held above retest level: {}",
                     symbol, oneMinBar.getLow(), retestLevel);
-            return confirmRetestAndPrepareEntry(symbol, state, "SHALLOW");
+            orders = confirmRetestAndPrepareEntry(symbol, state, "SHALLOW");
+            context.order(symbol, true, 100);
 
         } else if (new BigDecimal(oneMinBar.getClose()).compareTo(openingRange.high()) <= 0) {
             // Deeper retest - price closed back below opening high
             log.info("[{}] DEEP RETEST DETECTED - Close: {} back below opening high: {}",
                     symbol, oneMinBar.getClose(), openingRange.high());
-            return confirmRetestAndPrepareEntry(symbol, state, "DEEP");
+            orders = confirmRetestAndPrepareEntry(symbol, state, "DEEP");
         }
-        return CompletableFuture.completedFuture(Collections.emptyList());
+        return orders;
     }
 
     private CompletableFuture<List<Order>> confirmRetestAndPrepareEntry(String symbol, SymbolTradingState state,
