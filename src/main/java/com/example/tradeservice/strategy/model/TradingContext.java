@@ -8,7 +8,9 @@ import com.example.tradeservice.backtest.series.DoubleSeries;
 import com.example.tradeservice.strategy.enums.StrategyMode;
 import lombok.Builder;
 import lombok.Data;
+import org.springframework.beans.factory.annotation.Value;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +30,11 @@ public class TradingContext {
     private String date;
     private SymbolTradingState state;
     private StrategyMode mode;
+    @Value("${trading.default.stop-loss-range:2.0}")
+    private double defaultStopLossRange;
+
+    @Value("${trading.default.take-profit-range:3.0}")
+    private double defaultTakeProfitRange;
 
 
     double initialFunds;
@@ -42,7 +49,10 @@ public class TradingContext {
     List<Order> orders = new ArrayList<>();
 
     public double getPL() {
-        return closedPl + orders.stream().mapToDouble(t -> t.calculatePl(getLastPrice()))
+        //orders created with market order and take profit value
+        // So instead we should check if current price is above or below stopLoss/takeProfit?
+
+        return closedPl + orders.stream().mapToDouble(o -> o.calculatePl(getLastPrice()))
                 .sum() - commissions;
     }
 
@@ -58,10 +68,9 @@ public class TradingContext {
         return price;
     }
 
-    public Order order(String instrument, boolean buy, int amount) {
-
-        double price = getLastPrice();
-        SimpleOrder order = new SimpleOrder(orderId++, instrument, getInstant(), price, amount * (buy ? 1 : -1));
+    public Order order(String instrument, boolean buy, int amount, BigDecimal price) {
+        SimpleOrder order = new SimpleOrder(orderId++, instrument, getInstant(), price.doubleValue(),
+                amount * (buy ? 1 : -1));
         orders.add(order);
 
         commissions += calculateCommission(order);
@@ -72,7 +81,7 @@ public class TradingContext {
     public ClosedOrder close(Order order) {
         SimpleOrder simpleOrder = (SimpleOrder) order;
         orders.remove(simpleOrder);
-//        double price = getLastPrice(order.getInstrument());
+        double price = getLastPrice();
         SimpleClosedOrder closedOrder = new SimpleClosedOrder(simpleOrder, price, getInstant());
         closedOrders.add(closedOrder);
         closedPl += closedOrder.getPl();

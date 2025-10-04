@@ -77,7 +77,7 @@ public class CsvServiceImpl implements CsvService {
     }
 
     @Override
-    public void initializeCsvForDay(String symbol, String date) {
+    public DoubleSeries initializeCsvForDay(String symbol, String date) {
         //clear redis records
         String keyFiveMin = "candles:" + symbol + ":" + TimeFrame.FIVE_MIN + ":" + date;
         String keyOneMin = "candles:" + symbol + ":" + TimeFrame.ONE_MIN + ":" + date;
@@ -98,7 +98,24 @@ public class CsvServiceImpl implements CsvService {
 
         oneMinData.forEach(record -> storeInRedis(record, TimeFrame.ONE_MIN, date));
 
+
+        List<TimeSeries.Entry<Double>> entries = new ArrayList<>();
+        oneMinData.stream()
+                        .map(candle -> {
+                            // Parse datetime
+                            LocalDate candleDate = LocalDate.parse(candle.getDatetime(), DATE_FORMATTER);
+                            Instant instant = candleDate.atStartOfDay(ZoneOffset.UTC).toInstant();
+
+                            // Parse close value
+                            Double closeValue = Double.parseDouble(candle.getClose());
+
+                            // Create entry
+                            return new TimeSeries.Entry<>(closeValue, instant);
+                        })
+                                .forEach(entries::add);
+
         log.info("Initialized csv records for day - {}", date);
+        return new DoubleSeries(entries, symbol).toAscending();
 
     }
 

@@ -48,13 +48,13 @@ public class BacktestTradingStrategy {
 
     public void test(String symbol) {
 
+        // initializing csv and Redis candles but
+        DoubleSeries series = csvService.initializeCsvForDay(symbol, "2025-09-05");
         //
-        DoubleSeries doubleSeries = csvServiceImpl.readDoubleSeries(symbol);
-        // we need to move this or modify DoubleSeries
-        csvService.initializeCsvForDay(symbol, "2025-09-05");
+//        DoubleSeries doubleSeries = csvServiceImpl.readDoubleSeries(symbol);
 
         int deposit = 15000;
-        Backtest backtest = new Backtest(deposit, doubleSeries, symbol);
+        Backtest backtest = new Backtest(deposit, series, symbol);
         backtest.setLeverage(4);
 
         // do the backtest

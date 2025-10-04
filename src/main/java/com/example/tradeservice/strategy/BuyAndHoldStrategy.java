@@ -1,12 +1,12 @@
 package com.example.tradeservice.strategy;
 
 import com.example.tradeservice.service.OrderTracker;
-import com.example.tradeservice.strategy.enums.TradingState;
 import com.example.tradeservice.strategy.model.TradingContext;
 import com.ib.client.Order;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +27,6 @@ public class BuyAndHoldStrategy implements AsyncTradingStrategy {
 
     @Override
     public CompletableFuture<TradingContext> startStrategy(TradingContext context) {
-        context.getState().setCurrentState(TradingState.SETUP_COMPLETE);
         orders = null;
         return CompletableFuture.completedFuture(context);
     }
@@ -39,7 +38,7 @@ public class BuyAndHoldStrategy implements AsyncTradingStrategy {
 
             orders = new HashMap<>();
             String symbol = context.getSymbol();
-            context.order(symbol, true, 100);
+            context.order(symbol, true, 100, BigDecimal.TEN);
 
             Order order = orderTracker.placeBuyAndHoldMarketOrder(100);
             orders.put(symbol, order);

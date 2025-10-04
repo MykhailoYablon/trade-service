@@ -15,10 +15,8 @@ import com.ib.client.Contract;
 import com.ib.client.Order;
 import com.ib.client.Types;
 import lombok.extern.slf4j.Slf4j;
-import org.aspectj.weaver.ast.Or;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
 
 import java.io.File;
 import java.math.BigDecimal;
@@ -261,37 +259,40 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
             // Shallow retest - price held above breakout level
             log.info("[{}] SHALLOW RETEST DETECTED - Low: {} held above retest level: {}",
                     symbol, oneMinBar.getLow(), retestLevel);
-            orders = confirmRetestAndPrepareEntry(symbol, state, "SHALLOW");
-            context.order(symbol, true, 100);
+            orders = confirmRetestAndPrepareEntry(symbol, context, "SHALLOW");
+
 
         } else if (new BigDecimal(oneMinBar.getClose()).compareTo(openingRange.high()) <= 0) {
             // Deeper retest - price closed back below opening high
             log.info("[{}] DEEP RETEST DETECTED - Close: {} back below opening high: {}",
                     symbol, oneMinBar.getClose(), openingRange.high());
-            orders = confirmRetestAndPrepareEntry(symbol, state, "DEEP");
+            orders = confirmRetestAndPrepareEntry(symbol, context, "DEEP");
         }
         return orders;
     }
 
-    private CompletableFuture<List<Order>> confirmRetestAndPrepareEntry(String symbol, SymbolTradingState state,
+    private CompletableFuture<List<Order>> confirmRetestAndPrepareEntry(String symbol, TradingContext context,
                                                                         String retestType) {
         log.info("[{}] RETEST CONFIRMED ({})! Ready for entry logic.", symbol, retestType);
-
+        var state = context.getState();
         OpeningRange openingRange = state.getOpeningRange();
         // Calculate suggested entry parameters
         BigDecimal suggestedEntry = openingRange.high().add(new BigDecimal("0.01"));
-        BigDecimal suggestedStop = openingRange.low().subtract(new BigDecimal("0.01"));
-        BigDecimal riskAmount = suggestedEntry.subtract(suggestedStop);
+        BigDecimal stopPrice = openingRange.low().subtract(new BigDecimal("0.01"));
+        BigDecimal riskAmount = suggestedEntry.subtract(stopPrice);
 
         log.info("[{}] ENTRY SETUP - Suggested Entry: {}, Stop Loss: {}, Risk per share: {}",
-                symbol, suggestedEntry, suggestedStop, riskAmount);
+                symbol, suggestedEntry, stopPrice, riskAmount);
 
         String testDate = state.getTestDate();
         writeToLog(symbol + "/break/" + testDate + ".log",
                 String.format("RETEST %s with retestType - %s and entry price - %s and stop loss price - %s", symbol,
-                        retestType, suggestedEntry, suggestedStop));
+                        retestType, suggestedEntry, stopPrice));
 
-        CompletableFuture<List<Order>> orders = processEntryAsync(symbol, suggestedEntry, suggestedStop, testDate);
+        CompletableFuture<List<Order>> orders = processEntryAsync(symbol, suggestedEntry, stopPrice, testDate);
+
+        //we need to adjust orders calculation. I mean profit will be taken only on certain price
+        context.order(symbol, true, 100, stopPrice);
 
         state.setCurrentState(TradingState.SETUP_COMPLETE);
         return orders;
