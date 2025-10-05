@@ -1,9 +1,6 @@
 package com.example.tradeservice.strategy.model;
 
-import com.example.tradeservice.backtest.ClosedOrder;
-import com.example.tradeservice.backtest.Order;
-import com.example.tradeservice.backtest.SimpleClosedOrder;
-import com.example.tradeservice.backtest.SimpleOrder;
+import com.example.tradeservice.backtest.*;
 import com.example.tradeservice.backtest.series.DoubleSeries;
 import com.example.tradeservice.strategy.enums.StrategyMode;
 import lombok.Builder;
@@ -47,12 +44,15 @@ public class TradingContext {
 
 
     List<Order> orders = new ArrayList<>();
+    List<ComplexOrder> complexOrders = new ArrayList<>();
 
     public double getPL() {
-        //orders created with market order and take profit value
-        // So instead we should check if current price is above or below stopLoss/takeProfit?
-
         return closedPl + orders.stream().mapToDouble(o -> o.calculatePl(getLastPrice()))
+                .sum() - commissions;
+    }
+
+    public double getComplexPL() {
+        return closedPl + complexOrders.stream().mapToDouble(o -> o.calculatePl(getLastPrice()))
                 .sum() - commissions;
     }
 
@@ -73,6 +73,14 @@ public class TradingContext {
                 amount * (buy ? 1 : -1));
         orders.add(order);
 
+        commissions += calculateCommission(order);
+
+        return order;
+    }
+
+    public Order complexOrder(String instrument, boolean buy, int amount, BigDecimal price) {
+        ComplexOrder order = new ComplexOrder(orderId++, instrument, getInstant(), price.doubleValue(), amount);
+        complexOrders.add(order);
         commissions += calculateCommission(order);
 
         return order;

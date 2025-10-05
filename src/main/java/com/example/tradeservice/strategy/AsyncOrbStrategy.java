@@ -292,7 +292,8 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
         CompletableFuture<List<Order>> orders = processEntryAsync(symbol, suggestedEntry, stopPrice, testDate);
 
         //we need to adjust orders calculation. I mean profit will be taken only on certain price
-        context.order(symbol, true, 100, stopPrice);
+
+        context.complexOrder(symbol, true, 100, stopPrice);
 
         state.setCurrentState(TradingState.SETUP_COMPLETE);
         return orders;

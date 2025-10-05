@@ -7,8 +7,6 @@ public class SimpleOrder implements Order {
     int id;
     int amount;
     double openPrice;
-    double stopLossPrice;
-    double takeProfitPrice;
     Instant openInstant;
     String instrument;
 
