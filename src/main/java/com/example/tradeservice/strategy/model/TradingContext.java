@@ -16,7 +16,7 @@ import java.util.List;
 @Builder
 public class TradingContext {
     Instant instant;
-    Double price;
+    Double currentPrice;
     List<String> instruments;
 
     public DoubleSeries profitLoss = new DoubleSeries("pl");
@@ -51,6 +51,40 @@ public class TradingContext {
                 .sum() - commissions;
     }
 
+    public double onTickPL() {
+        double totalPL = 0.0;
+        ComplexOrder order = complexOrders.getFirst();
+        boolean shouldClose = false;
+        double exitPrice = currentPrice;
+        double entryPrice = order.getOpenPrice();
+
+        // Check stop loss
+        if (order.getStopLossPrice() != 0) {
+            double stopPrice = order.getStopLossPrice();
+            if (currentPrice <= stopPrice) {
+                shouldClose = true;
+                exitPrice = stopPrice;
+            }
+        }
+
+        // Check take profit
+        if (order.getTakeProfitPrice() != 0 && !shouldClose) {
+            double takeProfitPrice = order.getTakeProfitPrice();
+            if (currentPrice >= takeProfitPrice) {
+                shouldClose = true;
+                exitPrice = takeProfitPrice;
+            }
+        }
+
+        // Calculate P&L if position should be closed
+        if (shouldClose) {
+            double pl = (exitPrice - entryPrice) * order.getAmount();
+            totalPL += pl;
+        }
+
+    return totalPL - commissions;
+    }
+
     public double getComplexPL() {
         return closedPl + complexOrders.stream().mapToDouble(o -> o.calculatePl(getLastPrice()))
                 .sum() - commissions;
@@ -65,7 +99,7 @@ public class TradingContext {
     }
 
     public double getLastPrice() {
-        return price;
+        return currentPrice;
     }
 
     public Order order(String instrument, boolean buy, int amount, BigDecimal price) {
@@ -78,7 +112,7 @@ public class TradingContext {
         return order;
     }
 
-    public Order complexOrder(String instrument, boolean buy, int amount, BigDecimal price) {
+    public Order complexOrder(String instrument, int amount, BigDecimal price) {
         ComplexOrder order = new ComplexOrder(orderId++, instrument, getInstant(), price.doubleValue(), amount);
         complexOrders.add(order);
         commissions += calculateCommission(order);

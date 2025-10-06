@@ -293,7 +293,7 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
 
         //we need to adjust orders calculation. I mean profit will be taken only on certain price
 
-        context.complexOrder(symbol, true, 100, stopPrice);
+        context.complexOrder(symbol, 100, stopPrice);
 
         state.setCurrentState(TradingState.SETUP_COMPLETE);
         return orders;

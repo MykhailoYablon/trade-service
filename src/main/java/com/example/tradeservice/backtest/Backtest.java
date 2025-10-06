@@ -95,11 +95,11 @@ public class Backtest {
         }
 
         TimeSeries.Entry<Double> entry = priceIterator.next();
-        context.setPrice(entry.getItem());
+        context.setCurrentPrice(entry.getItem());
         context.setInstant(entry.getInstant());
 
         //we need to think of calculating profit loss based on stopPrice and takeProfitPrice. Update Order ?
-        context.profitLoss.add(context.getPL(), entry.getInstant());
+        context.profitLoss.add(context.onTickPL(), entry.getInstant());
         context.fundsHistory.add(context.getAvailableFunds(), entry.getInstant());
 
         if (context.getAvailableFunds() < 0) {

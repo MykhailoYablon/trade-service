@@ -77,7 +77,7 @@ public class BacktestTradingStrategy {
                 .thenCompose(v -> strategy.startStrategy(context))
                 .thenCompose(ctx -> {
                     if (ctx != null) {
-                        symbolContexts.put(ctx.getSymbol(), ctx);
+//                        symbolContexts.put(ctx.getSymbol(), ctx);
                         log.info("Saved context for symbol: {}", ctx.getSymbol());
                     }
                     return onTick(ctx, 100);
@@ -92,7 +92,7 @@ public class BacktestTradingStrategy {
 
         var currentState = context.getState().getCurrentState();
         if (maxIterations <= 0 || !List.of(MONITORING_FOR_BREAKOUT, MONITORING_FOR_RETEST).contains(currentState)) {
-            symbolContexts.remove(context.getSymbol());
+//            symbolContexts.remove(context.getSymbol());
             return CompletableFuture.completedFuture(Collections.emptyList());
         }
 
