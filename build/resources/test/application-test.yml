@@ -1,0 +1,13 @@
+# Test configuration for BacktestTest
+# Minimal configuration to ensure tests run without external dependencies
+
+spring:
+  profiles:
+    active: test
+  
+# Disable unnecessary features for unit tests
+logging:
+  level:
+    com.example.tradeservice: DEBUG
+    org.springframework: WARN
+    org.mockito: WARN
