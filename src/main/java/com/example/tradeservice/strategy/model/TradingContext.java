@@ -52,6 +52,9 @@ public class TradingContext {
     }
 
     public double onTickPL() {
+        if (complexOrders.isEmpty()) {
+            return 0;
+        }
         double totalPL = 0.0;
         ComplexOrder order = complexOrders.getFirst();
         boolean shouldClose = false;

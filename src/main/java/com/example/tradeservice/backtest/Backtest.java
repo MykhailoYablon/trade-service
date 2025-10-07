@@ -68,6 +68,7 @@ public class Backtest {
                 .leverage(leverage)
                 .mHistory(new DoubleSeries(this.symbol))
                 .orders(new ArrayList<>())
+                .complexOrders(new ArrayList<>())
                 .profitLoss(new DoubleSeries("pl"))
                 .fundsHistory(new DoubleSeries("funds"))
                 .closedOrders(new ArrayList<>())
