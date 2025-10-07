@@ -98,8 +98,6 @@ public class Backtest {
         context.setCurrentPrice(entry.getItem());
         context.setInstant(entry.getInstant());
 
-        //we need to think of calculating profit loss based on stopPrice and takeProfitPrice. Update Order ?
-        context.profitLoss.add(context.onTickPL(), entry.getInstant());
         context.fundsHistory.add(context.getAvailableFunds(), entry.getInstant());
 
         if (context.getAvailableFunds() < 0) {
@@ -113,7 +111,8 @@ public class Backtest {
         //compare current price to profitLoss prices
         //close order if any reached price
 
-        context.profitLoss.add(context.getPL(), entry.getInstant());
+        //we need to think of calculating profit loss based on stopPrice and takeProfitPrice. Update Order ?
+        context.profitLoss.add(context.onTickPL(), entry.getInstant());
 
         context.mHistory.add(entry);
 
