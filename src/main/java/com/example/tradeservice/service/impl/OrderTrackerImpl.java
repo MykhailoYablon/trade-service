@@ -64,20 +64,20 @@ public class OrderTrackerImpl implements OrderTracker {
         return complexBracketOrder;
     }
 
-    public Order placeBuyAndHoldMarketOrder(Contract contract, Types.Action action, double quantity) {
+    public Order placeBuyAndHoldMarketOrder(double quantity) {
         Order order = new Order();
         orderId += 1;
 
         // Basic order properties
         order.orderId(orderId);
-        order.action(action);
+        order.action(Types.Action.BUY);
         order.orderType(OrderType.MKT);
         order.totalQuantity(Decimal.get(quantity));
 
         // Enable bracket order transmission
         order.transmit(false);
 
-        ibClient.placeOrder(++orderId, contract, order);
+//        ibClient.placeOrder(++orderId, contract, order);
 
         return order;
 

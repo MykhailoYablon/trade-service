@@ -1,4 +1,4 @@
-package com.example.tradeservice.strategy.model;
+package com.example.tradeservice.backtest;
 
 import java.time.Instant;
 

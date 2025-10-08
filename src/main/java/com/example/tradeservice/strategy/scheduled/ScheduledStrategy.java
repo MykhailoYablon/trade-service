@@ -18,6 +18,9 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static com.example.tradeservice.strategy.enums.TradingState.MONITORING_FOR_BREAKOUT;
+import static com.example.tradeservice.strategy.enums.TradingState.MONITORING_FOR_RETEST;
+
 @Service
 @Slf4j
 public class ScheduledStrategy {
@@ -39,8 +42,14 @@ public class ScheduledStrategy {
     public void collectOpeningRangeDataForAllSymbols() {
         log.info("Starting opening range data collection for all symbols");
         List<CompletableFuture<TradingContext>> futures = SYMBOLS.stream()
-                .map(symbol -> asyncOrbStrategy.startStrategy(new TradingContext(symbol, null,
-                        new SymbolTradingState(), StrategyMode.LIVE)))
+                .map(symbol -> {
+                    TradingContext context = TradingContext.builder()
+                            .symbol(symbol)
+                            .state(new SymbolTradingState())
+                            .mode(StrategyMode.LIVE)
+                            .build();
+                    return asyncOrbStrategy.startStrategy(context);
+                })
                 .toList();
 
         // Wait for all symbols to complete
@@ -51,8 +60,8 @@ public class ScheduledStrategy {
                         try {
                             TradingContext completedContext = future.join();
                             if (completedContext != null) {
-                                symbolContexts.put(completedContext.symbol(), completedContext);
-                                log.info("Saved context for symbol: {}", completedContext.symbol());
+                                symbolContexts.put(completedContext.getSymbol(), completedContext);
+                                log.info("Saved context for symbol: {}", completedContext.getSymbol());
                             }
                         } catch (Exception e) {
                             log.error("Error retrieving context from future", e);
@@ -62,11 +71,14 @@ public class ScheduledStrategy {
                 });
     }
 
-    @Scheduled(fixedRate = 60000) // Every minute
+//    @Scheduled(fixedRate = 60000) // Every minute
     public void monitorAllSymbolsForBreakoutAndRetest() {
         List<CompletableFuture<List<Order>>> futures = SYMBOLS.stream()
-                .filter(symbol -> Objects.nonNull(symbolContexts.get(symbol))
-                        && asyncOrbStrategy.shouldMonitorSymbol(symbolContexts.get(symbol).state()))
+                .filter(symbol -> {
+                    var currentState = symbolContexts.get(symbol).getState().getCurrentState();
+                    return Objects.nonNull(symbolContexts.get(symbol))
+                            && !List.of(MONITORING_FOR_BREAKOUT, MONITORING_FOR_RETEST).contains(currentState);
+                })
                 .map(symbol -> asyncOrbStrategy.onTick(symbolContexts.get(symbol)))
                 .toList();
 

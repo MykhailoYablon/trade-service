@@ -120,7 +120,7 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
                 if (state.getCurrentState() == MONITORING_FOR_BREAKOUT) {
                     handleBreakoutMonitoring(symbol, state, oneMinBar);
                 } else if (state.getCurrentState() == MONITORING_FOR_RETEST) {
-                    return handleRetestMonitoring(symbol, state, oneMinBar);
+                    return handleRetestMonitoring(context, oneMinBar);
                 }
 
                 writeToLog(symbol + "/" + state.getTestDate() + ".log",
@@ -246,47 +246,54 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
                 openingHigh);
     }
 
-    private CompletableFuture<List<Order>> handleRetestMonitoring(String symbol, SymbolTradingState state,
-                                                                  TwelveCandleBar oneMinBar) {
+    private CompletableFuture<List<Order>> handleRetestMonitoring(TradingContext context, TwelveCandleBar oneMinBar) {
+        SymbolTradingState state = context.getState();
+        String symbol = context.getSymbol();
         OpeningRange openingRange = state.getOpeningRange();
         BigDecimal retestLevel = openingRange.high().add(RETEST_BUFFER);
 
         // Check if low of candle stays above retest level (successful retest)
         // OR if close drops below opening high (deeper retest)
+        CompletableFuture<List<Order>> orders = new CompletableFuture<>();
         if (new BigDecimal(oneMinBar.getLow()).compareTo(retestLevel) >= 0) {
             // Shallow retest - price held above breakout level
             log.info("[{}] SHALLOW RETEST DETECTED - Low: {} held above retest level: {}",
                     symbol, oneMinBar.getLow(), retestLevel);
-            return confirmRetestAndPrepareEntry(symbol, state, "SHALLOW");
+            orders = confirmRetestAndPrepareEntry(symbol, context, "SHALLOW");
+
 
         } else if (new BigDecimal(oneMinBar.getClose()).compareTo(openingRange.high()) <= 0) {
             // Deeper retest - price closed back below opening high
             log.info("[{}] DEEP RETEST DETECTED - Close: {} back below opening high: {}",
                     symbol, oneMinBar.getClose(), openingRange.high());
-            return confirmRetestAndPrepareEntry(symbol, state, "DEEP");
+            orders = confirmRetestAndPrepareEntry(symbol, context, "DEEP");
         }
-        return CompletableFuture.completedFuture(Collections.emptyList());
+        return orders;
     }
 
-    private CompletableFuture<List<Order>> confirmRetestAndPrepareEntry(String symbol, SymbolTradingState state,
+    private CompletableFuture<List<Order>> confirmRetestAndPrepareEntry(String symbol, TradingContext context,
                                                                         String retestType) {
         log.info("[{}] RETEST CONFIRMED ({})! Ready for entry logic.", symbol, retestType);
-
+        var state = context.getState();
         OpeningRange openingRange = state.getOpeningRange();
         // Calculate suggested entry parameters
         BigDecimal suggestedEntry = openingRange.high().add(new BigDecimal("0.01"));
-        BigDecimal suggestedStop = openingRange.low().subtract(new BigDecimal("0.01"));
-        BigDecimal riskAmount = suggestedEntry.subtract(suggestedStop);
+        BigDecimal stopPrice = openingRange.low().subtract(new BigDecimal("0.01"));
+        BigDecimal riskAmount = suggestedEntry.subtract(stopPrice);
 
         log.info("[{}] ENTRY SETUP - Suggested Entry: {}, Stop Loss: {}, Risk per share: {}",
-                symbol, suggestedEntry, suggestedStop, riskAmount);
+                symbol, suggestedEntry, stopPrice, riskAmount);
 
         String testDate = state.getTestDate();
         writeToLog(symbol + "/break/" + testDate + ".log",
                 String.format("RETEST %s with retestType - %s and entry price - %s and stop loss price - %s", symbol,
-                        retestType, suggestedEntry, suggestedStop));
+                        retestType, suggestedEntry, stopPrice));
 
-        CompletableFuture<List<Order>> orders = processEntryAsync(symbol, suggestedEntry, suggestedStop, testDate);
+        CompletableFuture<List<Order>> orders = processEntryAsync(symbol, suggestedEntry, stopPrice, testDate);
+
+        //we need to adjust orders calculation. I mean profit will be taken only on certain price
+
+        context.complexOrder(symbol, 100, stopPrice);
 
         state.setCurrentState(TradingState.SETUP_COMPLETE);
         return orders;
