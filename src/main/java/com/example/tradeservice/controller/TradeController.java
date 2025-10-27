@@ -142,8 +142,9 @@ public class TradeController {
     }
 
     @GetMapping("/backtest")
-    public void backtest(@RequestParam String symbol, @RequestParam StrategyType strategy) {
-        retestStrategy.test(symbol, strategy);
+    public void backtest(@RequestParam String symbol, @RequestParam StrategyType strategy,
+                         @RequestParam(required = false) String from, @RequestParam(required = false) String to) {
+        retestStrategy.test(symbol, strategy, from, to);
     }
 
     @GetMapping("/retest")

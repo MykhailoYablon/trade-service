@@ -48,13 +48,15 @@ public class BacktestTradingStrategy {
     @Autowired
     private CsvServiceImpl csvServiceImpl;
 
-    public void test(String symbol, StrategyType strategy) {
+    public void test(String symbol, StrategyType strategy, String from, String to) {
 
         // initializing csv and Redis candles
         DoubleSeries series;
         //
         if (StrategyType.BUY_AND_HOLD.equals(strategy)) {
-            series = csvServiceImpl.readDoubleSeries(symbol, LocalDate.parse("2025-09-23"), null);
+            LocalDate fromDate = LocalDate.parse(from);
+            LocalDate toDate = LocalDate.parse(to);
+            series = csvServiceImpl.readDoubleSeries(symbol, null, null);
         } else
             series = csvService.initializeCsvForDay(symbol, "2025-09-05");
 
