@@ -6,6 +6,7 @@ import com.example.tradeservice.service.csv.CsvServiceImpl;
 import com.example.tradeservice.strategy.AsyncTradingStrategy;
 import com.example.tradeservice.strategy.dataclient.StockDataClient;
 import com.example.tradeservice.strategy.enums.StrategyMode;
+import com.example.tradeservice.strategy.enums.StrategyType;
 import com.example.tradeservice.strategy.model.SymbolTradingState;
 import com.example.tradeservice.strategy.model.TradingContext;
 import com.ib.client.Order;
@@ -16,6 +17,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -46,19 +48,22 @@ public class BacktestTradingStrategy {
     @Autowired
     private CsvServiceImpl csvServiceImpl;
 
-    public void test(String symbol) {
+    public void test(String symbol, StrategyType strategy) {
 
-        // initializing csv and Redis candles but
-        DoubleSeries series = csvService.initializeCsvForDay(symbol, "2025-09-05");
+        // initializing csv and Redis candles
+        DoubleSeries series;
         //
-//        DoubleSeries doubleSeries = csvServiceImpl.readDoubleSeries(symbol);
+        if (StrategyType.BUY_AND_HOLD.equals(strategy)) {
+            series = csvServiceImpl.readDoubleSeries(symbol, LocalDate.parse("2025-09-23"), null);
+        } else
+            series = csvService.initializeCsvForDay(symbol, "2025-09-05");
 
         int deposit = 15000;
         Backtest backtest = new Backtest(deposit, series, symbol);
         backtest.setLeverage(4);
 
         // do the backtest
-        Backtest.Result result = backtest.run(strategy);
+        Backtest.Result result = backtest.run(this.strategy);
 
         log.info("Result - {}", result.pl);
     }

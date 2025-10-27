@@ -1,8 +1,10 @@
 package com.example.tradeservice.strategy;
 
 import com.example.tradeservice.service.OrderTracker;
+import com.example.tradeservice.strategy.enums.StrategyType;
 import com.example.tradeservice.strategy.model.TradingContext;
 import com.ib.client.Order;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +18,9 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 @Component
 public class BuyAndHoldStrategy implements AsyncTradingStrategy {
+
+    @Getter
+    StrategyType strategyType = StrategyType.BUY_AND_HOLD;
 
     Map<String, Order> orders;
 

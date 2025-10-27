@@ -7,10 +7,10 @@ import com.example.tradeservice.model.MarketStatus;
 import com.example.tradeservice.model.Quote;
 import com.example.tradeservice.model.SymbolLookup;
 import com.example.tradeservice.model.TradeData;
-import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.service.TradeDataService;
 import com.example.tradeservice.service.csv.YearlyHistoricalDataService;
 import com.example.tradeservice.backtest.BacktestTradingStrategy;
+import com.example.tradeservice.strategy.enums.StrategyType;
 import com.ib.client.Order;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -142,8 +142,8 @@ public class TradeController {
     }
 
     @GetMapping("/backtest")
-    public void backtest(@RequestParam String symbol) {
-        retestStrategy.test(symbol);
+    public void backtest(@RequestParam String symbol, @RequestParam StrategyType strategy) {
+        retestStrategy.test(symbol, strategy);
     }
 
     @GetMapping("/retest")
@@ -209,6 +209,6 @@ public class TradeController {
 //        historicalDataService.collectYearlyDataEfficiently(symbol, TimeFrame.FIVE_MIN, 2025);
 //        historicalDataService.collectYearlyDataEfficiently(symbol, TimeFrame.ONE_MIN, 2025);
 
-        historicalDataService.collectYearlyDataPerDay(symbol);
+        historicalDataService.collectCloseDataPerDay(symbol);
     }
 }

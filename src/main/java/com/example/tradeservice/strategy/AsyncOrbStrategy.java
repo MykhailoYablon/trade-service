@@ -6,6 +6,7 @@ import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.service.OrderTracker;
 import com.example.tradeservice.service.impl.PositionTracker;
 import com.example.tradeservice.strategy.dataclient.StockDataClient;
+import com.example.tradeservice.strategy.enums.StrategyType;
 import com.example.tradeservice.strategy.enums.TradingState;
 import com.example.tradeservice.strategy.model.BreakoutData;
 import com.example.tradeservice.strategy.model.OpeningRange;
@@ -14,6 +15,7 @@ import com.example.tradeservice.strategy.model.TradingContext;
 import com.ib.client.Contract;
 import com.ib.client.Order;
 import com.ib.client.Types;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -37,6 +39,9 @@ import static com.example.tradeservice.strategy.utils.FileUtils.writeToLog;
 @Component
 @Slf4j
 public class AsyncOrbStrategy implements AsyncTradingStrategy {
+
+    @Getter
+    StrategyType strategyType = StrategyType.ORB;
 
     // Configuration
     private static final int OPENING_RANGE_MINUTES = 15; // 9:30-9:45

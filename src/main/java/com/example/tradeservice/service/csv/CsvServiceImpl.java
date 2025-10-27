@@ -133,7 +133,7 @@ public class CsvServiceImpl implements CsvService {
         }
     }
 
-    public DoubleSeries readDoubleSeries(String symbol) {
+    public DoubleSeries readDoubleSeries(String symbol, LocalDate from, LocalDate to) {
         List<TimeSeries.Entry<Double>> entries = new ArrayList<>();
         String filePath = "exports/" + symbol + "/day_data.csv";
 
@@ -152,6 +152,16 @@ public class CsvServiceImpl implements CsvService {
 
                 // Parse datetime
                 LocalDate date = LocalDate.parse(row[0], DAY_FORMATTER);
+
+                // Apply date range filter
+                if (from != null && date.isBefore(from)) {
+                    continue;
+                }
+                if (to != null && date.isAfter(to)) {
+                    continue;
+                }
+
+                // Parse datetime
                 Instant instant = date.atStartOfDay(ZoneOffset.UTC).toInstant();
 
                 // Parse close value
@@ -161,6 +171,7 @@ public class CsvServiceImpl implements CsvService {
                 entries.add(new TimeSeries.Entry<>(closeValue, instant));
             }
         } catch (IOException | CsvException ex) {
+            log.info("There is no csv initialized yet");
             throw new RuntimeException(ex);
         }
 

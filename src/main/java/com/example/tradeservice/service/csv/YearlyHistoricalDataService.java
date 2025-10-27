@@ -83,20 +83,14 @@ public class YearlyHistoricalDataService {
                 totalApiCalls, allFilteredDataSize);
     }
 
-    public void collectYearlyDataPerDay(String symbol) {
+    public void collectCloseDataPerDay(String symbol) {
         String csv = twelveDataClient.csvTimeSeries(symbol);
 
         log.info("Got csv");
 
-
-
         csvServiceImpl.writeDayCsv(symbol, csv);
 
         log.info("Data fetched and saved");
-//        return null;
-//        chunkData.stream()
-//                .map(e -> new DoubleSeries.)
-
     }
 
     public List<StockResponse.Value> limitFirstIntervalsPerDay(List<StockResponse.Value> monthData,

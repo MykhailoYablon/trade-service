@@ -49,7 +49,7 @@ public class TwelveDataClient implements StockDataClient {
                         + "&symbol=" + symbol.toUpperCase()
                         + "&interval=" + TimeFrame.ONE_DAY.getTwelveFormat()
                         + "&format=CSV"
-                        + "&outputsize=100"
+                        + "&outputsize=5000"
                 )
                 .retrieve()
                 .body(String.class);
