@@ -42,6 +42,7 @@ public class CsvServiceImpl implements CsvService {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper mapper = new ObjectMapper();
 
+    @Override
     public void exportToCsvTwelve(String symbol, TimeFrame timeFrame,
                                   List<StockResponse.Value> dataList) {
         new File("exports/" + symbol + "/" + timeFrame).mkdirs();
@@ -119,6 +120,7 @@ public class CsvServiceImpl implements CsvService {
 
     }
 
+    @Override
     public void writeDayCsv(String symbol, String csv) {
         String filePath = "exports/" + symbol + "/day_data.csv";
         try (PrintWriter writer = new PrintWriter(new FileWriter(filePath))) {
@@ -133,6 +135,7 @@ public class CsvServiceImpl implements CsvService {
         }
     }
 
+    @Override
     public DoubleSeries readDoubleSeries(String symbol, LocalDate from, LocalDate to) {
         List<TimeSeries.Entry<Double>> entries = new ArrayList<>();
         String filePath = "exports/" + symbol + "/day_data.csv";

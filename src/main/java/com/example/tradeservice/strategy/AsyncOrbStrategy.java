@@ -6,6 +6,7 @@ import com.example.tradeservice.model.enums.TimeFrame;
 import com.example.tradeservice.service.OrderTracker;
 import com.example.tradeservice.service.impl.PositionTracker;
 import com.example.tradeservice.strategy.dataclient.StockDataClient;
+import com.example.tradeservice.strategy.enums.StrategyDataSource;
 import com.example.tradeservice.strategy.enums.StrategyType;
 import com.example.tradeservice.strategy.enums.TradingState;
 import com.example.tradeservice.strategy.model.BreakoutData;
@@ -16,6 +17,7 @@ import com.ib.client.Contract;
 import com.ib.client.Order;
 import com.ib.client.Types;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -52,10 +54,16 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
     private final OrderTracker orderTracker;
     private final PositionTracker positionTracker;
 
-    public AsyncOrbStrategy(StockDataClient dataClient, OrderTracker orderTracker, PositionTracker positionTracker) {
+    @Getter
+    @Setter
+    private StrategyDataSource strategyDataSource;
+
+    public AsyncOrbStrategy(StockDataClient dataClient, OrderTracker orderTracker, PositionTracker positionTracker,
+                            StrategyDataSource strategyDataSource) {
         this.dataClient = dataClient;
         this.orderTracker = orderTracker;
         this.positionTracker = positionTracker;
+        this.strategyDataSource = strategyDataSource;
     }
 
     @Async("strategyExecutor")

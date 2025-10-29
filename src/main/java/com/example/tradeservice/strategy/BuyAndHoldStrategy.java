@@ -1,10 +1,12 @@
 package com.example.tradeservice.strategy;
 
 import com.example.tradeservice.service.OrderTracker;
+import com.example.tradeservice.strategy.enums.StrategyDataSource;
 import com.example.tradeservice.strategy.enums.StrategyType;
 import com.example.tradeservice.strategy.model.TradingContext;
 import com.ib.client.Order;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +23,10 @@ public class BuyAndHoldStrategy implements AsyncTradingStrategy {
 
     @Getter
     StrategyType strategyType = StrategyType.BUY_AND_HOLD;
+
+    @Getter
+    @Setter
+    StrategyDataSource strategyDataSource = StrategyDataSource.CSV;
 
     Map<String, Order> orders;
 

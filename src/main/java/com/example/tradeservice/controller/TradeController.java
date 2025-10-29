@@ -148,9 +148,11 @@ public class TradeController {
     }
 
     @GetMapping("/retest")
-    public void retestDay(@RequestParam String symbol, @RequestParam(required = false) String requestedDate) throws InterruptedException {
+    public void retestDay(@RequestParam String symbol,
+                          @RequestParam StrategyType strategy,
+                          @RequestParam(required = false) String requestedDate) {
         if (Objects.nonNull(requestedDate)) {
-            retestStrategy.startStrategy(symbol, requestedDate);
+            retestStrategy.startStrategy(symbol, strategy, requestedDate);
         } else {
             // Define the year
             int year = 2025;
@@ -188,7 +190,7 @@ public class TradeController {
                             currentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")));
 
                     List<CompletableFuture<List<Order>>> monthlyFutures = monthlyDateStrings.stream()
-                            .map(day -> retestStrategy.startStrategy(symbol, day))
+                            .map(day -> retestStrategy.startStrategy(symbol, strategy, day))
                             .toList();
 
                     // Wait for this month to complete before moving to next month
