@@ -58,12 +58,10 @@ public class AsyncOrbStrategy implements AsyncTradingStrategy {
     @Setter
     private StrategyDataSource strategyDataSource;
 
-    public AsyncOrbStrategy(StockDataClient dataClient, OrderTracker orderTracker, PositionTracker positionTracker,
-                            StrategyDataSource strategyDataSource) {
+    public AsyncOrbStrategy(StockDataClient dataClient, OrderTracker orderTracker, PositionTracker positionTracker) {
         this.dataClient = dataClient;
         this.orderTracker = orderTracker;
         this.positionTracker = positionTracker;
-        this.strategyDataSource = strategyDataSource;
     }
 
     @Async("strategyExecutor")

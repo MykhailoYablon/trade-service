@@ -26,7 +26,7 @@ public class TradingStrategyConfig {
     public AsyncTradingStrategy twelveDataStrategy(@Qualifier("twelveData") StockDataClient twelveDataClient,
                                                    OrderTracker orderTracker,
                                                    PositionTracker positionTracker) {
-        return new AsyncOrbStrategy(twelveDataClient, orderTracker, positionTracker, StrategyDataSource.TWELVE);
+        return new AsyncOrbStrategy(twelveDataClient, orderTracker, positionTracker);
     }
 
     @Bean
@@ -34,7 +34,7 @@ public class TradingStrategyConfig {
     public AsyncTradingStrategy csvDataStrategy(@Qualifier("csvData") StockDataClient csvDataClient,
                                                 OrderTracker orderTracker,
                                                 PositionTracker positionTracker) {
-        return new AsyncOrbStrategy(csvDataClient, orderTracker, positionTracker, StrategyDataSource.CSV);
+        return new AsyncOrbStrategy(csvDataClient, orderTracker, positionTracker);
     }
 
     // Spring will inject all beans implementing AsyncTradingStrategy

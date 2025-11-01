@@ -43,12 +43,14 @@ public class TwelveDataClient implements StockDataClient {
                 .body(StockResponse.class);
     }
 
-    public String csvTimeSeries(String symbol) {
+    public String csvTimeSeries(String symbol, String startDate, String endDate) {
         return restClient.get()
                 .uri(TIME_SERIES.url() + "?apikey=" + token
                         + "&symbol=" + symbol.toUpperCase()
                         + "&interval=" + TimeFrame.ONE_DAY.getTwelveFormat()
                         + "&format=CSV"
+                        + (startDate == null ? "" :"&start_date=" + startDate)
+                        + (endDate == null ? "" :"&end_date=" + endDate)
                         + "&outputsize=5000"
                 )
                 .retrieve()

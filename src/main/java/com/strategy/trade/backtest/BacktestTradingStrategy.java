@@ -1,8 +1,10 @@
 package com.strategy.trade.backtest;
 
 import com.strategy.trade.backtest.series.DoubleSeries;
+import com.strategy.trade.backtest.series.TimeSeries;
 import com.strategy.trade.service.csv.CsvService;
 import com.strategy.trade.strategy.AsyncTradingStrategy;
+import com.strategy.trade.strategy.dataclient.TwelveDataClient;
 import com.strategy.trade.strategy.enums.StrategyDataSource;
 import com.strategy.trade.strategy.enums.StrategyMode;
 import com.strategy.trade.strategy.enums.StrategyType;
@@ -14,10 +16,12 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -28,11 +32,14 @@ import static com.strategy.trade.strategy.enums.TradingState.MONITORING_FOR_RETE
 @Service
 public class BacktestTradingStrategy {
 
+    private static final DateTimeFormatter DAY_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
     private final Map<StrategyType, AsyncTradingStrategy> strategies;
     private final CsvService csvService;
+    private final TwelveDataClient twelveDataClient;
 
     public BacktestTradingStrategy(List<AsyncTradingStrategy> strategyList,
-                                   CsvService csvService) {
+                                   CsvService csvService, TwelveDataClient twelveDataClient) {
         this.csvService = csvService;
         strategies = strategyList.stream()
                 .filter(str -> StrategyDataSource.CSV.equals(str.getStrategyDataSource()))
@@ -40,14 +47,14 @@ public class BacktestTradingStrategy {
                         AsyncTradingStrategy::getStrategyType,
                         Function.identity()
                 ));
+        this.twelveDataClient = twelveDataClient;
     }
 
-    public void startBacktest(String symbol, StrategyType strategyType, String from, String to) {
+    public Backtest.Result startBacktest(String symbol, StrategyType strategyType, String startDate, String endDate) {
         var strategy = strategies.get(strategyType);
-        // initializing csv and Redis candles if needed
-        DoubleSeries series = getDoubleSeries(symbol, strategyType, from, to);
-
-        int deposit = 15000;
+        DoubleSeries series = getDoubleSeriesFromClient(symbol, strategyType, startDate, endDate);
+        log.info("Series size = {}", series.getData().size());
+        int deposit = 20000;
         Backtest backtest = new Backtest(deposit, series, symbol);
         backtest.setLeverage(4);
 
@@ -55,6 +62,7 @@ public class BacktestTradingStrategy {
         Backtest.Result result = backtest.run(strategy);
 
         log.info("Result - {}", result.pl);
+        return result;
     }
 
     //execute separate strategy
@@ -103,7 +111,30 @@ public class BacktestTradingStrategy {
     }
 
 
-    private DoubleSeries getDoubleSeries(String symbol, StrategyType strategyType, String from, String to) {
+    private DoubleSeries getDoubleSeriesFromClient(String symbol, StrategyType strategyType, String startDate, String endDate) {
+        DoubleSeries series;
+        List<TimeSeries.Entry<Double>> entries = new ArrayList<>();
+
+        if (StrategyType.BUY_AND_HOLD.equals(strategyType)) {
+            String csv = twelveDataClient.csvTimeSeries(symbol, startDate, endDate);
+            csv.lines()
+                    .skip(1)
+                    .forEach(line -> {
+                        String[] parts = line.split(";");
+                        // Parse datetime
+                        Instant instant = LocalDate.parse(parts[0], DAY_FORMATTER)
+                                .atStartOfDay(ZoneOffset.UTC).toInstant();
+                        // Parse close value
+                        Double closeValue = Double.parseDouble(parts[4]);
+                        entries.add(new TimeSeries.Entry<>(closeValue, instant));
+                    });
+            series = new DoubleSeries(entries, symbol).toAscending();
+        } else
+            series = csvService.initializeCsvForDay(symbol, "2025-09-05");
+        return series;
+    }
+
+    private DoubleSeries getDoubleSeriesFromCsv(String symbol, StrategyType strategyType, String from, String to) {
         DoubleSeries series;
         //
         if (StrategyType.BUY_AND_HOLD.equals(strategyType)) {

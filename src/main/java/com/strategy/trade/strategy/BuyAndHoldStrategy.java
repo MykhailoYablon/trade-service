@@ -49,7 +49,7 @@ public class BuyAndHoldStrategy implements AsyncTradingStrategy {
 
             orders = new HashMap<>();
             String symbol = context.getSymbol();
-            context.order(symbol, true, 100, BigDecimal.TEN);
+            context.order(symbol, true, 100);
 
             Order order = orderTracker.placeBuyAndHoldMarketOrder(100);
             orders.put(symbol, order);

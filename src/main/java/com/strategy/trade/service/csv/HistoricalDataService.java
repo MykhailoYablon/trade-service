@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @AllArgsConstructor
-public class YearlyHistoricalDataService {
+public class HistoricalDataService {
 
     private final TwelveDataClient twelveDataClient;
     private final CsvServiceImpl csvServiceImpl;
@@ -84,7 +84,7 @@ public class YearlyHistoricalDataService {
     }
 
     public void collectCloseDataPerDay(String symbol) {
-        String csv = twelveDataClient.csvTimeSeries(symbol);
+        String csv = twelveDataClient.csvTimeSeries(symbol, null, null);
 
         log.info("Got csv");
 

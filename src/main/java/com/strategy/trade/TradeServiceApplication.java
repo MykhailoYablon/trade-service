@@ -7,8 +7,8 @@ import org.springframework.data.redis.repository.configuration.EnableRedisReposi
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@EnableRedisRepositories(basePackages = "com.example.tradeservice.redis")
-@EnableJpaRepositories(basePackages = "com.example.tradeservice.repository")
+@EnableRedisRepositories(basePackages = "com.strategy.trade.redis")
+@EnableJpaRepositories(basePackages = "com.strategy.trade.repository")
 @EnableScheduling
 @EnableAsync
 @SpringBootApplication

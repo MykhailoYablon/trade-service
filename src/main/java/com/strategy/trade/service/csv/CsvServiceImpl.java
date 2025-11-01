@@ -127,7 +127,7 @@ public class CsvServiceImpl implements CsvService {
             csv.lines()
                     .map(line -> {
                         String[] parts = line.split(DELIMITER);
-                        return parts[0] + ";" + parts[4];
+                        return parts[0] + DELIMITER + parts[4];
                     })
                     .forEach(writer::println);
         } catch (IOException e) {

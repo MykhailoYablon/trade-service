@@ -1,5 +1,8 @@
 package com.strategy.trade.controller;
 
+import com.ib.client.Order;
+import com.strategy.trade.backtest.Backtest;
+import com.strategy.trade.backtest.BacktestTradingStrategy;
 import com.strategy.trade.configuration.FinnhubClient;
 import com.strategy.trade.handler.StockTradeWebSocketHandler;
 import com.strategy.trade.handler.TradeUpdatedEvent;
@@ -8,10 +11,8 @@ import com.strategy.trade.model.Quote;
 import com.strategy.trade.model.SymbolLookup;
 import com.strategy.trade.model.TradeData;
 import com.strategy.trade.service.TradeDataService;
-import com.strategy.trade.service.csv.YearlyHistoricalDataService;
-import com.strategy.trade.backtest.BacktestTradingStrategy;
+import com.strategy.trade.service.csv.HistoricalDataService;
 import com.strategy.trade.strategy.enums.StrategyType;
-import com.ib.client.Order;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationListener;
@@ -29,7 +30,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
-import static com.strategy.trade.service.csv.YearlyHistoricalDataService.isNonTradingDay;
+import static com.strategy.trade.service.csv.HistoricalDataService.isNonTradingDay;
 
 @Slf4j
 @CrossOrigin(origins = "*")
@@ -41,7 +42,7 @@ public class TradeController {
     private final TradeDataService tradeDataService;
     private final StockTradeWebSocketHandler webSocketHandler;
     private final FinnhubClient finnhubClient;
-    private final YearlyHistoricalDataService historicalDataService;
+    private final HistoricalDataService historicalDataService;
 
     private final BacktestTradingStrategy retestStrategy;
 
@@ -142,9 +143,10 @@ public class TradeController {
     }
 
     @GetMapping("/backtest")
-    public void backtest(@RequestParam String symbol, @RequestParam StrategyType strategy,
-                         @RequestParam(required = false) String from, @RequestParam(required = false) String to) {
-        retestStrategy.startBacktest(symbol, strategy, from, to);
+    public Backtest.Result backtest(@RequestParam String symbol, @RequestParam StrategyType strategy,
+                                    @RequestParam(required = false) String from,
+                                    @RequestParam(required = false) String to) {
+        return retestStrategy.startBacktest(symbol, strategy, from, to);
     }
 
     @GetMapping("/retest-orb")

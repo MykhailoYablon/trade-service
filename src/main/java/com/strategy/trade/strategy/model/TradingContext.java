@@ -1,6 +1,5 @@
 package com.strategy.trade.strategy.model;
 
-import com.example.tradeservice.backtest.*;
 import com.strategy.trade.backtest.*;
 import com.strategy.trade.backtest.series.DoubleSeries;
 import com.strategy.trade.strategy.enums.StrategyMode;
@@ -106,8 +105,9 @@ public class TradingContext {
         return currentPrice;
     }
 
-    public Order order(String instrument, boolean buy, int amount, BigDecimal price) {
-        SimpleOrder order = new SimpleOrder(orderId++, instrument, getInstant(), price.doubleValue(),
+    public Order order(String instrument, boolean buy, int amount) {
+        double lastPrice = getLastPrice();
+        SimpleOrder order = new SimpleOrder(orderId++, instrument, getInstant(), lastPrice,
                 amount * (buy ? 1 : -1));
         orders.add(order);
 

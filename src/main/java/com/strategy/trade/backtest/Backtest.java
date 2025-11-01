@@ -36,11 +36,11 @@ public class Backtest {
     @AllArgsConstructor
     public static class Result {
         double pl;
-        DoubleSeries priceSeries;
         List<ClosedOrder> orders;
         double initialFund;
         double finalValue;
         double commissions;
+        DoubleSeries priceSeries;
 
     }
 
@@ -80,7 +80,7 @@ public class Backtest {
 
         try {
             // sleep for state to be changed
-            Thread.sleep(15000);
+            Thread.sleep(5000);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -127,9 +127,11 @@ public class Backtest {
 
         List<ClosedOrder> orders = Collections.unmodifiableList(context.getClosedOrders());
         result = new Result(context.getClosedPl(),
-                context.getProfitLoss(),
 //                context.mFundsHistory,
                 orders, deposit,
-                deposit + context.getClosedPl(), context.getCommissions());
+                deposit + context.getClosedPl(),
+                context.getCommissions(),
+                context.getProfitLoss()
+                );
     }
 }
