@@ -113,8 +113,8 @@ public class Backtest {
         //close order if any reached price
 
         //we need to think of calculating profit loss based on stopPrice and takeProfitPrice. Update Order ?
-        context.profitLoss.add(context.onTickPL(), entry.getInstant());
-
+//        context.profitLoss.add(context.onTickPL(), entry.getInstant());
+        context.profitLoss.add(context.getPL(), entry.getInstant());
         context.mHistory.add(entry);
 
         return true;

@@ -11,17 +11,17 @@ import java.util.stream.Stream;
 
 public class TimeSeries<T> implements Iterable<TimeSeries.Entry<T>> {
     public static class Entry<T> {
-        T mT;
+        T value;
         @Getter
         Instant instant;
 
         public Entry(T t, Instant instant) {
-            mT = t;
+            value = t;
             this.instant = instant;
         }
 
         public T getItem() {
-            return mT;
+            return value;
         }
 
         @Override
@@ -32,13 +32,13 @@ public class TimeSeries<T> implements Iterable<TimeSeries.Entry<T>> {
             Entry entry = (Entry) o;
 
             if (!instant.equals(entry.instant)) return false;
-            if (mT != null ? !mT.equals(entry.mT) : entry.mT != null) return false;
+            if (value != null ? !value.equals(entry.value) : entry.value != null) return false;
             return true;
         }
 
         @Override
         public int hashCode() {
-            int result = mT != null ? mT.hashCode() : 0;
+            int result = value != null ? value.hashCode() : 0;
             result = 31 * result + instant.hashCode();
             return result;
         }
@@ -46,7 +46,7 @@ public class TimeSeries<T> implements Iterable<TimeSeries.Entry<T>> {
         @Override public String toString() {
             return "Entry{" +
                 "mInstant=" + instant +
-                ", mT=" + mT +
+                ", mT=" + value +
                 '}';
         }
     }
@@ -96,7 +96,7 @@ public class TimeSeries<T> implements Iterable<TimeSeries.Entry<T>> {
     public <F> TimeSeries<F> map(Function<T, F> f) {
         List<Entry<F>> newEntries = new ArrayList<>(size());
         for (Entry<T> entry : data) {
-            newEntries.add(new Entry<>(f.apply(entry.mT), entry.instant));
+            newEntries.add(new Entry<>(f.apply(entry.value), entry.instant));
         }
         return new TimeSeries<>(newEntries);
     }
