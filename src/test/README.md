@@ -124,6 +124,6 @@ Enable debug logging in `application-test.yml` to see detailed test execution:
 ```yaml
 logging:
   level:
-    com.example.tradeservice: DEBUG
+    com.strategy.trade: DEBUG
 ```
 

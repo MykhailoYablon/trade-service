@@ -27,7 +27,7 @@ financial:
 
 logging:
   level:
-    com.example.tradeservice: DEBUG
+    com.strategy.trade: DEBUG
     org.springframework.web: DEBUG
     org.springframework.data.redis: DEBUG
   pattern:
