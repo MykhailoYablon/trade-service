@@ -7,4 +7,5 @@ public interface StockDataClient {
 
     TwelveCandleBar quoteWithInterval(String symbol, TimeFrame timeFrame, String date);
 
+    String price(String symbol);
 }

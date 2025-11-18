@@ -1,5 +1,6 @@
 package com.strategy.trade.backtest;
 
+import com.ib.client.Order;
 import com.strategy.trade.backtest.series.DoubleSeries;
 import com.strategy.trade.backtest.series.TimeSeries;
 import com.strategy.trade.service.csv.CsvService;
@@ -10,7 +11,6 @@ import com.strategy.trade.strategy.enums.StrategyMode;
 import com.strategy.trade.strategy.enums.StrategyType;
 import com.strategy.trade.strategy.model.SymbolTradingState;
 import com.strategy.trade.strategy.model.TradingContext;
-import com.ib.client.Order;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;

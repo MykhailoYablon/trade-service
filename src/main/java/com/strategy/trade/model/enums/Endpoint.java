@@ -18,7 +18,8 @@ public enum Endpoint {
     //TWELVE DATA URLS
 
     TIME_SERIES("https://api.twelvedata.com/time_series"),
-    TWELVE_QUOTE("https://api.twelvedata.com/quote");
+    TWELVE_QUOTE("https://api.twelvedata.com/quote"),
+    TWELVE_PRICE("https://api.twelvedata.com/price");
 
 
     private String url;

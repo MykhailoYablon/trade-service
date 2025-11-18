@@ -1,8 +1,8 @@
 package com.strategy.trade.service.csv;
 
-import com.strategy.trade.strategy.dataclient.TwelveDataClient;
 import com.strategy.trade.model.StockResponse;
 import com.strategy.trade.model.enums.TimeFrame;
+import com.strategy.trade.strategy.dataclient.TwelveDataClient;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

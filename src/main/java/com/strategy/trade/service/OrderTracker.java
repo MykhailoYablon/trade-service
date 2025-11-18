@@ -1,10 +1,10 @@
 package com.strategy.trade.service;
 
-import com.strategy.trade.model.OrderModel;
 import com.ib.client.Contract;
 import com.ib.client.Order;
 import com.ib.client.OrderState;
 import com.ib.client.Types;
+import com.strategy.trade.model.OrderModel;
 
 import java.math.BigDecimal;
 import java.util.Collection;

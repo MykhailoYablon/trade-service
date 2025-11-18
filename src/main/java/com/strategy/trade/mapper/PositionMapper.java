@@ -1,8 +1,8 @@
 package com.strategy.trade.mapper;
 
+import com.ib.client.Decimal;
 import com.strategy.trade.entity.Position;
 import com.strategy.trade.model.PositionHolder;
-import com.ib.client.Decimal;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

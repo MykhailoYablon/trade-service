@@ -1,10 +1,10 @@
 package com.strategy.trade.controller;
 
+import com.ib.client.Contract;
+import com.ib.client.Types;
 import com.strategy.trade.model.OrderModel;
 import com.strategy.trade.service.OrderTracker;
 import com.strategy.trade.service.impl.PositionTracker;
-import com.ib.client.Contract;
-import com.ib.client.Types;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 

@@ -1,7 +1,7 @@
 package com.strategy.trade.mapper;
 
-import com.strategy.trade.model.ContractModel;
 import com.ib.client.Contract;
+import com.strategy.trade.model.ContractModel;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

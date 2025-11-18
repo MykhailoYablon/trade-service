@@ -5,7 +5,6 @@ import com.strategy.trade.service.impl.PositionTracker;
 import com.strategy.trade.strategy.AsyncOrbStrategy;
 import com.strategy.trade.strategy.AsyncTradingStrategy;
 import com.strategy.trade.strategy.dataclient.StockDataClient;
-import com.strategy.trade.strategy.enums.StrategyDataSource;
 import com.strategy.trade.strategy.enums.StrategyType;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;

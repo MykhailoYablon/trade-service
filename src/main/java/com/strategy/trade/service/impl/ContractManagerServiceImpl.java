@@ -1,5 +1,6 @@
 package com.strategy.trade.service.impl;
 
+import com.ib.client.Contract;
 import com.strategy.trade.mapper.ContractMapper;
 import com.strategy.trade.model.ContractHolder;
 import com.strategy.trade.model.ContractModel;
@@ -8,7 +9,6 @@ import com.strategy.trade.repository.PositionRepository;
 import com.strategy.trade.service.ContractManagerService;
 import com.strategy.trade.service.TWSConnectionManager;
 import com.strategy.trade.service.TwsResultHolder;
-import com.ib.client.Contract;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;

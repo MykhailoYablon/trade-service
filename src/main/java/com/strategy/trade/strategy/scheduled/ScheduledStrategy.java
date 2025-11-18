@@ -1,10 +1,10 @@
 package com.strategy.trade.strategy.scheduled;
 
+import com.ib.client.Order;
 import com.strategy.trade.strategy.AsyncTradingStrategy;
 import com.strategy.trade.strategy.enums.StrategyMode;
 import com.strategy.trade.strategy.model.SymbolTradingState;
 import com.strategy.trade.strategy.model.TradingContext;
-import com.ib.client.Order;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
