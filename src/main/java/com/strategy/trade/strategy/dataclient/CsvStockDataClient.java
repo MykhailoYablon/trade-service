@@ -1,9 +1,9 @@
 package com.strategy.trade.strategy.dataclient;
 
-import com.strategy.trade.model.TwelveCandleBar;
-import com.strategy.trade.model.enums.TimeFrame;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opencsv.bean.CsvToBeanFilter;
+import com.strategy.trade.model.TwelveCandleBar;
+import com.strategy.trade.model.enums.TimeFrame;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +31,11 @@ public class CsvStockDataClient implements StockDataClient {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public String price(String symbol) {
+        return "";
     }
 
     public TwelveCandleBar fetchNextCandle(String symbol, TimeFrame timeFrame, String date) throws Exception {

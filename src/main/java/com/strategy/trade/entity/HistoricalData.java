@@ -1,7 +1,7 @@
 package com.strategy.trade.entity;
 
-import com.strategy.trade.model.enums.TimeFrame;
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.strategy.trade.model.enums.TimeFrame;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;

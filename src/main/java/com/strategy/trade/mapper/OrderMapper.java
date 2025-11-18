@@ -1,7 +1,7 @@
 package com.strategy.trade.mapper;
 
-import com.strategy.trade.model.OrderModel;
 import com.strategy.trade.model.OrderHolder;
+import com.strategy.trade.model.OrderModel;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

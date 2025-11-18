@@ -1,16 +1,15 @@
 package com.strategy.trade.strategy;
 
+import com.ib.client.Order;
 import com.strategy.trade.service.OrderTracker;
 import com.strategy.trade.strategy.enums.StrategyDataSource;
 import com.strategy.trade.strategy.enums.StrategyType;
 import com.strategy.trade.strategy.model.TradingContext;
-import com.ib.client.Order;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

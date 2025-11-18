@@ -1,10 +1,5 @@
 package com.strategy.trade.service.csv;
 
-import com.strategy.trade.backtest.series.DoubleSeries;
-import com.strategy.trade.backtest.series.TimeSeries;
-import com.strategy.trade.model.StockResponse;
-import com.strategy.trade.model.TwelveCandleBar;
-import com.strategy.trade.model.enums.TimeFrame;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opencsv.CSVParser;
@@ -14,6 +9,11 @@ import com.opencsv.CSVReaderBuilder;
 import com.opencsv.bean.CsvToBean;
 import com.opencsv.bean.CsvToBeanBuilder;
 import com.opencsv.exceptions.CsvException;
+import com.strategy.trade.backtest.series.DoubleSeries;
+import com.strategy.trade.backtest.series.TimeSeries;
+import com.strategy.trade.model.StockResponse;
+import com.strategy.trade.model.TwelveCandleBar;
+import com.strategy.trade.model.enums.TimeFrame;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;

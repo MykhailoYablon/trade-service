@@ -1,5 +1,8 @@
 package com.strategy.trade.strategy;
 
+import com.ib.client.Contract;
+import com.ib.client.Order;
+import com.ib.client.Types;
 import com.strategy.trade.model.PositionHolder;
 import com.strategy.trade.model.TwelveCandleBar;
 import com.strategy.trade.model.enums.TimeFrame;
@@ -13,9 +16,6 @@ import com.strategy.trade.strategy.model.BreakoutData;
 import com.strategy.trade.strategy.model.OpeningRange;
 import com.strategy.trade.strategy.model.SymbolTradingState;
 import com.strategy.trade.strategy.model.TradingContext;
-import com.ib.client.Contract;
-import com.ib.client.Order;
-import com.ib.client.Types;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;

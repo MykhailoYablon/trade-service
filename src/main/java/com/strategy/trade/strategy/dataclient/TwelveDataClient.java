@@ -14,8 +14,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-import static com.strategy.trade.model.enums.Endpoint.TIME_SERIES;
-import static com.strategy.trade.model.enums.Endpoint.TWELVE_QUOTE;
+import static com.strategy.trade.model.enums.Endpoint.*;
 
 @NoArgsConstructor
 @Getter
@@ -27,12 +26,13 @@ import static com.strategy.trade.model.enums.Endpoint.TWELVE_QUOTE;
 public class TwelveDataClient implements StockDataClient {
 
     @Autowired
-    private RestClient restClient;
+    @Qualifier("twelveClient")
+    private RestClient twelveClient;
     @Value("${financial.twelve.api.token}")
     private String token;
 
     public StockResponse timeSeries(String symbol, String timeFrame, String startDate, String endDate) {
-        return restClient.get()
+        return twelveClient.get()
                 .uri(TIME_SERIES.url() + "?apikey=" + token
                         + "&symbol=" + symbol.toUpperCase()
                         + "&interval=" + timeFrame
@@ -44,7 +44,7 @@ public class TwelveDataClient implements StockDataClient {
     }
 
     public String csvTimeSeries(String symbol, String startDate, String endDate) {
-        return restClient.get()
+        return twelveClient.get()
                 .uri(TIME_SERIES.url() + "?apikey=" + token
                         + "&symbol=" + symbol.toUpperCase()
                         + "&interval=" + TimeFrame.ONE_DAY.getTwelveFormat()
@@ -60,13 +60,25 @@ public class TwelveDataClient implements StockDataClient {
     @Override
     public TwelveCandleBar quoteWithInterval(String symbol, TimeFrame timeFrame, String date) {
         log.info("Fetching candle for symbol - {} with timeframe - {}", symbol, timeFrame);
-        return restClient.get()
+        return twelveClient.get()
                 .uri(TWELVE_QUOTE.url() + "?apikey=" + token
                         + "&symbol=" + symbol.toUpperCase()
                         + "&interval=" + timeFrame.getTwelveFormat()
                 )
                 .retrieve()
                 .body(TwelveCandleBar.class);
+    }
+
+    @Override
+    public String price(String symbol) {
+        String price = twelveClient.get()
+                .uri(TWELVE_PRICE.url() + "?apikey=" + token
+                        + "&symbol=" + symbol.toUpperCase()
+                )
+                .retrieve()
+                .body(String.class);
+        log.info("Latest price for symbol - {} is {}", symbol, price);
+        return price;
     }
 
 }

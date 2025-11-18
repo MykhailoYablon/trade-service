@@ -1,5 +1,7 @@
 package com.strategy.trade.service.impl;
 
+import com.ib.client.Contract;
+import com.ib.client.Decimal;
 import com.strategy.trade.entity.DataRequest;
 import com.strategy.trade.entity.Position;
 import com.strategy.trade.model.PositionHolder;
@@ -7,8 +9,6 @@ import com.strategy.trade.model.enums.RequestStatus;
 import com.strategy.trade.model.enums.TimeFrame;
 import com.strategy.trade.repository.DataRequestRepository;
 import com.strategy.trade.repository.PositionRepository;
-import com.ib.client.Contract;
-import com.ib.client.Decimal;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
